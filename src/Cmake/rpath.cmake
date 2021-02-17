@@ -1,0 +1,6 @@
+if(APPLE)
+  set(CMAKE_INSTALL_RPATH "@rpath")
+else(*)
+  set(CMAKE_INSTALL_RPATH "$ORIGIN")
+endif()
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)

@@ -1,0 +1,91 @@
+Workflow
+========
+
+Starting from a TGMM config file
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+1. Compute a hierarchical segmentation::
+
+        ProcessStack <configFile> <frame>
+
+   Computes the hierarchical segmentation, truncating the tree at ``minTau``.
+   Produces two files
+
+   Relevant paramters:
+
+   ==================  =======================================================
+   Parameter           Description
+   ==================  =======================================================
+   imgBasename         Path to a tiff or klb with the stack for a single
+                       timepoint.
+   radiusMedianFilter  The full width of the filter will be 
+                       ``2*radiusMedianFilter+1``
+   minTau              The aglomeration threshold at which to cut the tree.
+                       See TGMM_UserGuide.pdf for details.
+   backgroundThr       Supervoxels are only considered for foreground regions.
+   conn3D              Either 6,8,74.  Specifies how many neighboring voxels
+                       are considered connected.  74 is a 5x5x3 region of
+                       neighbors.
+   ==================  =======================================================
+
+
+2. (optional) Output a segmentation::
+
+        ProcessStack <binFile> <tau> <minSuperVoxelSzPx>
+
+    Will generate a segmentation and output the result to a klb.
+
+3. Run Tracking::
+
+        TGMM <configFile> <startTime <endTime>
+
+The config file
+~~~~~~~~~~~~~~~
+
+This file specifies, among other things, where the input data is kept and
+where to save results.
+
+There are three sections.  Path parameters, main parameters and advanced 
+parameters.  Normally, the advanced parameters are never touched.
+
+The TGMM application uses default values for any missing parameters.
+
+The TGMM output includes an "experiment log" text file that records all the 
+settings used including the path settings.
+
+
+Tips
+====
+
+ProcessStack
+~~~~~~~~~~~~
+
+* See the tgmm paper and the TGMM_UserGuide.pdf for detailed descriptions of 
+  everything.
+* Avoid long path names (full path must be less than 260 characters).
+* ProcessStack outputs data in the same folder as the input data, but using a
+  slightly modified name.
+* ProcessStack often wants input filenames with the file extension removed.
+  So instead of 
+
+        path/to/my_timepoint.tif
+
+  Use
+
+        path/to/my_timepoint
+
+* When specifying paths on windows, it's fine to use (unix-style) 
+  backslashes::
+
+        C:/path/to/my/files
+
+  Windows normally uses forward slashes.  On modern versions of windows, 
+  backslashes in paths get translated appropriately.  If you really want to 
+  use forward slashes in the config file, they need to be escaped with another
+  slash::
+
+        C:\\path\\to\\my\\files.
+
+  Either approach should work.
+
+    

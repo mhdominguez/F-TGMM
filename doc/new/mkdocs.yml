@@ -1,0 +1,12 @@
+site_name: TGMM
+nav:
+    - Home: index.md
+    - User Guide:        
+        - Quickstart: user-guide/quickstart.md            
+        - Docker: user-guide/docker.md        
+        - Parameters: user-guide/parameters.md
+        - Example Config File: user-guide/example-config.md
+    - TGMM:
+        - TGMM Output: user-guide/tgmm-output.md
+    - Develeper Guide:
+        - Build: dev-guide/building.md

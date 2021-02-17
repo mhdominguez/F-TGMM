@@ -1,0 +1,37 @@
+Program called with the following command:
+TGMM.exe C:\Users\Fernando\cppProjects\TrackingGaussianMixtures\NM2013-paperRun\src\cellDivisionDiscriminationWithTemporalWindow\matlabCode\cellDivAnnotatorGUI\testData\TGMM_configFile.txt 0 30 
+minPi_kForDead=1e-005
+maxGaussiansPerVoxel=5
+imgFilePattern=C:/Users/Fernando/cppProjects/TrackingGaussianMixtures/NM2013-paperRun/data/data/TM?????_timeFused_blending/SPC0_CM0_CM1_CHN00_CHN01.fusedStack_?????
+maxIterEM=100
+tolLikelihood=1e-006
+betaPercentageOfN_k=0.01
+nuPercentageOfN_k=1
+alphaPercentage = 0.8
+thrSplitScore=-1
+thrCellDivisionPlaneDistance=10000.5
+thrPrcentile=9.71373e-317
+estimateOpticalFlow=0
+deathThrOpticalFlow=-1
+maxDistPartitionNeigh=80
+persistanceSegmentationTau=14
+maxNumKNNsupervoxel=10
+maxDistKNNsupervoxel=41
+temporalWindowForLogicalRules (radius)=5
+anisotropyZ=5.01
+offset file = empty
+thrBackgroundDetectorHigh=0.7
+thrBackgroundDetectorLow=0.2
+short-lived duaghter thre = 5
+thrCellDivisionWithTemporalWindow=-0.1
+radiusMedianFilter =2
+minTau =2
+backgroundThreshold =200
+conn3D =74
+regularizePrecisionMatrixConstants_lambdaMin = 0.02
+regularizePrecisionMatrixConstants_lambdaMax = 0.2222
+regularizePrecisionMatrixConstants_maxExcentricity = 9
+Trim supervoxel minNucleiSize = 50
+Trim supervoxel maxNucleiSize =3000
+Trim supervoxel maxPercentileTrimSV = 0.4
+Trim supervoxel conn3DsvTrim = 6

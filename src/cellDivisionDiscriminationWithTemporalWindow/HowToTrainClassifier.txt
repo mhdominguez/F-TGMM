@@ -1,0 +1,56 @@
+This file describes the steps on how to obtain samples and generate new classifiers for cell division using temporal window features:
+
+1.-Select a folder where a TGMM reconstruction is located (you might want to run the code without the classifier to have more "false positive" samples). 
+
+We call this folder ${TGMMrunRoot}
+
+2.-Using the Matlab triview visualization software at C:\Users\Fernando\TrackingNuclei\matlabCode\visualization  generate a set of xml annotations files.
+	
+The 'Next sorted object' ('d') function helps focusing only on cell divisions.
+Labels:
+
+'twocells' = true cell division
+'onecell' = division to fix undersegmentation
+'half cell' = division in background or very blurred object
+'no cell' = other (usually division due to oversegmentation or large nuclei)
+
+3.-In the ${TGMMrunRoot} folder, create a subfolder named 'annForCellDivDiscrWithTempWin'. Copy all the xml annotation files there.
+
+4.-Execute the program:
+
+C:\Users\Fernando\cppProjects\TrackingGaussianMixtures\NM2013-paperRun\build\cellDivisionDiscriminationWithTemporalWindow\Release>trainCellDivisionWithTemporalWindow.exe ${TGMMrunRoot} <imgBasename> 5 symetry
+
+-symetry: 1 = test set; 8 = training set (artifically increment training samples by flipping images around different axis)
+-The program generates the binary file ${TGMMrunRoot}\annForCellDivDiscrWithTempWin\trainFeaturesCellDivDiscr containing the samples. 
+-You can read the binary file in Matlab using the following command from folder c:\users\Fernando\matlabExternalToolboxes\boostingDemo-Torralba\matlabBoost
+
+[xTrain, yTrain] = readTrainingDataBinary(filename);
+
+5.-Generate classifier with Matlab program C:\Users\Fernando\cppProjects\TrackingGaussianMixtures\NM2013-paperRun\src\cellDivisionDiscriminationWithTemporalWindow\matlabCode\trainCellDivisionDiscriminatorWithTemporalWindow.m
+
+-It contains the list of training samples used for the classifier
+-It already saves the final classifier in the correct location
+-If you generated more training data, add it to the list of files
+-Since RUSBOOST uses random subsampling, different runs might be slightly different
+
+-So far, I use the following dataset (hold out) to test the best parameters for the classifier: 
+filename2 = 'E:\TGMMruns\GMEMtracking3D_2014_5_7_20_54_41_dataset12_09_24_zebrafish_simview_temporalLRdeactivatedForCellDivisionTraining\annForCellDivDiscrWithTempWin\trainFeaturesCellDivDiscr_finalHoldOut_symmetry1.bin';
+
+
+Protocol to select parameters (from Matlab command line in folder C:\Users\Fernando\cppProjects\TrackingGaussianMixtures\NM2013-paperRun\src\cellDivisionDiscriminationWithTemporalWindow\matlabCode):
+addpath c:\users\Fernando\matlabExternalToolboxes\boostingDemo-Torralba\matlabBoost
+filename2 = 'E:\TGMMruns\GMEMtracking3D_2014_5_7_20_54_41_dataset12_09_24_zebrafish_simview_temporalLRdeactivatedForCellDivisionTraining\annForCellDivDiscrWithTempWin\trainFeaturesCellDivDiscr_finalHoldOut_symmetry1.bin';
+[xTest yTest] = readBinaryTrainingData(filename2);
+
+trainCellDivisionDiscriminatorWithTemporalWindow;
+untitled_testSetOnZebrafish;
+FP  %it contains the number of false positives after adding one more false negative
+
+
+
+
+-In order to select the final threshold ([0 1]) use the following C++ code to decide (this program executes the same classifier that will be used in TGMM, so thr should be representative):
+C:\Users\Fernando\cppProjects\TrackingGaussianMixtures\NM2013-paperRun\build\UtilsCUDA\3DEllipticalHaarFeatures\gentleBoost\Release>GentleBoost_PrecRecallCurve.exe  C:\Users\Fernando\cppProjects\TrackingGaussianMixtures\NM2013-paperRun\src\filesToCopyToExeFolder\classifierCellDivisionWithTemporalWindow.txt E:\TGMMruns\GMEMtracking3D_2014_5_7_20_54_41_dataset12_09_24_zebrafish_simview_temporalLRdeactivatedForCellDivisionTraining\annForCellDivDiscrWithTempWin\trainFeaturesCellDivDiscr_finalHoldOut_symmetry1.bin
+
+It will generate a preceision-recall text file E:\TGMMruns\GMEMtracking3D_2014_5_16_21_0_21_dataset12_10_09_zebrafish_confocal_CDTW_thr000_iter2\annForCellDivDiscrWithTempWin\trainFeaturesCellDivDiscr_testSet_symmetry1.bin_ROCtraining.txt that can be used to select the threshold.
+

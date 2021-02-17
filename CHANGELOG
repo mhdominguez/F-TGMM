@@ -1,0 +1,35 @@
+v2.3.0
+    Update major version number to correspond with TGMM2 naming from Kate's
+        paper
+    TGMM: add linux support
+    Changes related to docker support
+    Update for newer build environments: VS2017/cuda10, gcc7/cuda10
+v0.3.0
+    Fix: "invalid device symbol" on Pascal
+    Add support for importing the results of an external division classifier    
+v0.2.7
+    Fixed a crash related to loading timepoints for short-lived daughter rules.
+v0.2.6
+    Added extra debug output
+    Reintroduced short-lived daughter rules (which has been turned off)
+        Setting the SLD_lengthTMthr to something >0 now engages detection
+        and merging of short lived daughters.
+v0.2.5
+    Fix: hierarchical segmentation indexing when flushing last frames
+    Added --gpu option to TGMM.exe to enable selecting the gpu to use.
+v0.2.4
+    Fix: indexing problems when flushing last frames
+v0.2.3
+    Binary tree fix
+    Fix filename issue
+    Bug fix: timeseries should use iniframe
+v0.2.0
+    Reduced memory consumption to about 1/3x
+    Added docs to distributable.
+v0.1.9
+    Large data set support.
+    Restrict to compute 3.0+ CUDA devices.
+    Linux porting/no-gpu adaptation
+    Rewrote CMake build system
+v0.1.0
+    Initial tagging of Amat's code.

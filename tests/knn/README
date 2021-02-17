@@ -1,0 +1,14 @@
+This code looks pretty old.
+
+It's from the UtilsCUDA version of knnCUDA and looks like it's 
+the test code used during the initial implementation.
+
+It needs some work to convert it into a standing/useful unit test.
+Such a test would certainly be pretty useful.
+
+Things get a little more complicated because different knn implemnentations are
+used by the GMEM code and the temporalLogicalRules code.  The two knn's are 
+closely related.  It looks like the temporal logical rules one might be a little
+newer.
+
+This test code was with the implementation used with GMEM.

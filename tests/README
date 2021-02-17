@@ -1,0 +1,6 @@
+One day, I envision this folder will contain a suite of useful unit and 
+integration tests.  That day is not today.
+
+Instead, it's a resting place for bits of testing code scattered throughout 
+the code base.  Here it lies so that someone might one day be able to inspect
+them and use them.
