@@ -1,4 +1,4 @@
-# TGMM 2.0 Fork, compatible with Ubuntu 20.04 LTS and NVIDIA CUDA toolkit 11.1
+# TGMM 2.0 Fork
 
 This fork is confirmed to build and run properly with Ubuntu 20.04 LTS and 
 NVIDIA CUDA toolkit 11.1.  There are improvements that allow user-set
@@ -57,7 +57,6 @@ sudo cp -rf ../install/* /opt/tgmm
 ## Resources
 
 [Original TGMM Repository](https://bitbucket.org/fernandoamat/tgmm-paper)
-[Docker Images](https://cloud.docker.com/repository/docker/nclack/tgmm)
 
 ## References 
 
