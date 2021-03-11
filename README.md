@@ -1,9 +1,9 @@
-# TGMM 2.0 Fork
+# F-TGMM
 
 This fork is confirmed to build and run properly with Ubuntu 20.04 LTS and 
 NVIDIA CUDA toolkit 11.1.  There are improvements that allow user-set
-temporal window for logical rules, and bug fixes to the 3D Haar GPU division
-classifier.
+temporal window for logical rules, enhancements to the primary division
+detection code, and bug fixes to the secondary 3D Haar GPU division classifier.
 
 
 ## Build Requirements
@@ -18,8 +18,8 @@ classifier.
 Download the source code:
 
 ```sh
-git clone https://github.com/mhdominguez/tgmm-fork.git
-cd tgmm-fork
+git clone https://github.com/mhdominguez/F-TGMM.git
+cd F-TGMM
 git submodule update --init --recursive
 ```
 
@@ -47,10 +47,6 @@ sudo mkdir /opt/tgmm
 sudo cp -rf ../install/* /opt/tgmm
 
 ```
-
-
-
-
 
 
 
