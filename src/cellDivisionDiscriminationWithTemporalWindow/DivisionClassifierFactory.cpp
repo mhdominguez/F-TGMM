@@ -9,6 +9,7 @@ using namespace std;
 static const char* kind_name_table[] = {
 	"DivisionClassiferKind_None",
 	"DivisionClassiferKind_BoostedElipticalHaarFeatures_AmatF2013",
+	"DivisionClassiferKind_BoostedElipticalHaarFeatures_AmatFDominguezM2021",
 	"DivisionClassiferKind_LookupTable_2018"
 };
 
@@ -23,7 +24,8 @@ public:
 	virtual ~CellDivisionDoNothing()=default;
 
 	int setClassifierModel(std::string filename) { return 0; }
-	int classifyCellDivisionTemporalWindow(lineageHyperTree& lht,int frame,std::vector<mylib::Array*>& imgVec,int devCUDA) final { return 0; }
+	int classifyCellDivisionTemporalWindow(lineageHyperTree& lht,int frame,std::vector<mylib::Array*>& imgVec,int devCUDA ) final { return 0; }
+	int classifyCellDivisionTemporalWindow(lineageHyperTree& lht,int frame,std::vector<mylib::Array*>& imgVec,int devCUDA,  double thrCellDivisionPlaneDistance, float* im_zero, float* im_plus_one, bool regularize_W4DOF, float scaleOrig[3]) final { return 0; } //NEW 2021: new thrCellDivisionPlaneDistance parameter
 	size_t getNumCellDivisions()  { return 0; }
 	float getThrCDWT()  { return 0; }
 	void setThrCDWT(float p)  {};
@@ -55,9 +57,18 @@ struct DivisionClassifierFactory::State {
 				instance=make_shared<cellDivisionTemporalWindow_TGMMsupport>(classifier_file_root_path,config.Amatf2013,temporalWindowRadius);
 			}
 			break;
+			case DivisionClassiferKind_BoostedElipticalHaarFeatures_AmatFDominguezM2021:
+			{
+				const auto model=classifier_file_root_path+"/"+config.Amatf2013.classifierFileCDTW;
+				config.Amatf2013.classifierFileCDTW=model;
+				instance=make_shared<cellDivisionTemporalWindow_TGMMsupport>(classifier_file_root_path,config.Amatf2013,temporalWindowRadius);
+				config.Amatf2013.use_2021_code = true;
+			}
+			break;			
 			case DivisionClassiferKind_LookupTable_2018:
 			{
-				instance=make_shared<CellDivisionLookupTable>(config.LUT);							
+				//instance=make_shared<CellDivisionLookupTable>(config.LUT); //not sure how this would actually perform with current division classifier code
+				instance=make_shared<CellDivisionDoNothing>();
 			}
 			break;
 			case DivisionClassiferKind_None:

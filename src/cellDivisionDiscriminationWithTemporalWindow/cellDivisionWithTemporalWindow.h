@@ -39,7 +39,7 @@ public:
 	vector<basicEllipticalHaarFeatureVector> fHaarVec;
 	
 	TreeNode<ChildrenTypeLineage >* cellDivisionPtr;//pointer to teh cell division element, so we can compute shape, geometrical, etc features
-
+	TreeNode<ChildrenTypeLineage >* cellDivisionDaughterPtr;//pointer to teh cell division element, so we can compute shape, geometrical, etc features
 
 
 	//constructor / destructor
@@ -78,7 +78,9 @@ public:
 			
 
 	*/
-	static int calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters(const vector< TreeNode< ChildrenTypeLineage >* >& divisionNodes, const vector<mylib::Array*>& imgVec, vector<cellDivisionWithTemporalWindow>& cdtwVec, int devCUDA, int symmetry);
+	static int calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters(const vector< TreeNode< ChildrenTypeLineage >* >& daughterNodes, const vector< TreeNode< ChildrenTypeLineage >* >& parentNodes, const vector<mylib::Array*>& imgVec, vector<cellDivisionWithTemporalWindow>& cdtwVec, int devCUDA, int symmetry);
+	
+	static int calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters(const vector< TreeNode< ChildrenTypeLineage >* >& divisionNodes, const vector<mylib::Array*>& imgVec, vector<cellDivisionWithTemporalWindow>& cdtwVec, int devCUDA, int symmetry);	
 
 	/*
 	\brief same calculateBasicEllipticalHaarFeaturesBatchForCellDivision but for a scpefici time point
@@ -102,7 +104,7 @@ public:
 	
 
 	int calculateFeaturesSingleWindowForDaughters_featureSelection_v1();//after training with boosting, it only calculates the features used in the tree (~300). It is a subset of all the ones calculated at calculateFeaturesSingleWindowForDaughters
-
+	int calculateFeaturesSingleWindowForDaughters_featureSelection_v1_2021();
 
 	//support functions
 	void  writeToBinary(std::ofstream &fout);

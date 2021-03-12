@@ -192,6 +192,7 @@ int configOptionsTrackingGaussianMixture::parseConfigFileTrackingGaussianMixture
 				map<string,DivisionClassiferKind> kinds{
 					{"None",      DivisionClassiferKind_None},
 	                {"AmatF2013", DivisionClassiferKind_BoostedElipticalHaarFeatures_AmatF2013},
+	                {"DominguezM2021", DivisionClassiferKind_BoostedElipticalHaarFeatures_AmatFDominguezM2021},					
 	                {"LUT2018",   DivisionClassiferKind_LookupTable_2018}
 				};
 				cellDivisionClassifier.method=kinds.at(token[1]);
@@ -271,6 +272,7 @@ static string to_string(const DivisionClassiferKind kind) {
 		case DivisionClassiferKind_None: return "None";
 		case DivisionClassiferKind_BoostedElipticalHaarFeatures_AmatF2013: return "AmatF2013";
 		case DivisionClassiferKind_LookupTable_2018: return "LUT2018";
+		case DivisionClassiferKind_BoostedElipticalHaarFeatures_AmatFDominguezM2021: return "DominguezM2021";
 		default:
 			throw runtime_error("Error: Require an string representation of the division classifier method.");
 	}
@@ -338,13 +340,19 @@ int configOptionsTrackingGaussianMixture::CellDivisionClassifier::validate() con
 	switch(method) {
 		case DivisionClassiferKind_BoostedElipticalHaarFeatures_AmatF2013: {
 			if(Amatf2013.classifierFileCDTW.empty()) {
-				cout<<"ERROR: Configuration failed to validate.\n\tWhen using teh AmatF2013 division classifer, the classifierFileCDTW must be set."<<endl;
+				cout<<"ERROR: Configuration failed to validate.\n\tWhen using the AmatF2013 division classifer, the classifierFileCDTW must be set."<<endl;
 				return 1;
 			}
 		} break;
+		case DivisionClassiferKind_BoostedElipticalHaarFeatures_AmatFDominguezM2021: {
+			if(Amatf2013.classifierFileCDTW.empty()) {
+				cout<<"ERROR: Configuration failed to validate.\n\tWhen using the DominguezM2021 division classifer, the classifierFileCDTW must be set."<<endl;
+				return 1;
+			}
+		} break;		
 		case DivisionClassiferKind_LookupTable_2018: {
 			if(LUT.filename.empty()) {
-				cout<<"ERROR: Configuration failed to validate.\n\tWhen using teh LUT2018 division classifer, the cellDivisionLUT_filename must be set."<<endl;
+				cout<<"ERROR: Configuration failed to validate.\n\tWhen using the LUT2018 division classifer, the cellDivisionLUT_filename must be set."<<endl;
 				return 1;
 			}
 		} break;		

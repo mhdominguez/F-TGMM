@@ -2,6 +2,7 @@
 #define CELLDIVISIONLOOKUPTABLE_H
 #include "DivisionClassifierFactory.h"
 #include "../Utils/parseConfigFile.h"
+#include "lineageHyperTree.h"
 #include <map>
 
 class CellDivisionLookupTable : public IDivisionClassifier {
@@ -14,8 +15,9 @@ public:
 	virtual ~CellDivisionLookupTable() = default;
 
 	
+	//int classifyCellDivisionTemporalWindow(lineageHyperTree& lht,int frame,std::vector<mylib::Array*>& imgVec,int devCUDA, double thrCellDivisionPlaneDistance) final;
+	int classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame,std::vector<mylib::Array*>& imgVec, int devCUDA, double thrCellDivisionPlaneDistance, float* im_zero, float* im_plus_one, bool regularize_W4DOF, float scaleOrig[3]) final;
 	int classifyCellDivisionTemporalWindow(lineageHyperTree& lht,int frame,std::vector<mylib::Array*>& imgVec,int devCUDA) final;
-	
 
 	/**
 	* \brief  Used for debugging/progress messages

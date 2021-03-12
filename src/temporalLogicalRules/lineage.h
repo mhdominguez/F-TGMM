@@ -20,6 +20,7 @@
 #include<list>
 #include "../constants.h"
 #include "binaryTree.h"
+#include "nuclei.h"
 
 using namespace std;
 
@@ -48,12 +49,39 @@ public:
 	int daughterLengthToDivision(TreeNode<ChildrenTypeLineage>* rootSplit, bool Left) const;//length between two divisions. if Left == true->check for left side. Returns <0 if cell dies before dividing again (the negative number is the length until death)
 	void daughterLengthToDivisionAll(vector<int>& ll) const;//summarizes daughterLengthToDivision for all splits in a binary tree
 	
-
+	void debugPrintLineage();
 protected:
 
 private:
 	TreeNode< ChildrenTypeLineage >* CopyPartialLineage(TreeNode< ChildrenTypeLineage > *root, TreeNode< ChildrenTypeLineage > *parent, int boundsTM);
 };
+
+
+inline void lineage::debugPrintLineage()
+{	
+	if(bt.IsEmpty())
+	{
+		cout<<"   Lineage is empty"<<endl;
+		return;
+	}
+
+	vector< TreeNode<ChildrenTypeLineage>* > vecTreeNodes;//to retrive pointer to all the nodes in the tree
+	bt.traverseBinaryTreeBFS(vecTreeNodes);
+
+	for(vector< TreeNode<ChildrenTypeLineage>* >::const_iterator iter = vecTreeNodes.begin(); iter != vecTreeNodes.end(); ++iter)
+	{
+		cout<<"   "<<(*((*iter)->data));
+		if((*iter)->parent != NULL)
+			cout<<"; Parent: "<< ( *((*iter)->parent->data) );
+		else
+			cout<<"; Parent: "<<"NULL";
+		if((*iter)->left != NULL)
+			cout<<"; Left Child: "<< ( *((*iter)->left->data) );
+		if((*iter)->right != NULL)
+			cout<<"; Right Child: "<< ( *((*iter)->right->data) );
+		cout<<endl;
+	}
+}
 
 
 #endif

@@ -6,7 +6,7 @@
 #include <vector>
 #include <memory>
 #include "../Utils/parseConfigFile.h"
-
+#include "lineageHyperTree.h"
  namespace mylib
  {
  	#include <mylib/array.h>
@@ -38,6 +38,8 @@ public:
 	 * \param devCUDA cuda device to use for any gpu-related computation
 	 * \return -1 if there is an error. Otherwise returns the number of true cell divisions
 	 */
+	virtual int    classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, std::vector<mylib::Array*>& imgVec, int devCUDA, double thrCellDivisionPlaneDistance, float* im_zero, float* im_plus_one, bool regularize_W4DOF, float scaleOrig[3])=0;
+	//virtual int    classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, std::vector<mylib::Array*>& imgVec, int devCUDA, double thrCellDivisionPlaneDistance)=0;
 	virtual int    classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, std::vector<mylib::Array*>& imgVec, int devCUDA)=0;
 
 	/**

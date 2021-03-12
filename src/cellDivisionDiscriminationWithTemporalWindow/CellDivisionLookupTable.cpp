@@ -35,11 +35,33 @@ CellDivisionLookupTable::CellDivisionLookupTable(config& config)
 std::ostream& CellDivisionLookupTable::print(std::ostream& os) {
 	return os<<"DivisionClassifer(LUT2018: dr2="<<threshold_r2_<<"px^2, dt="<<temporal_window_radius_<<"frames)";
 }
+/*
+int CellDivisionLookupTable::classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, TimeSeriesMap& time_series_map, int devCUDA, double thrCellDivisionPlaneDistance, bool regularize_W4DOF, float scaleOrig[3])
+{ //NEW 2021: thrCellDivisionPlaneDistance new parameters
+	std::vector<mylib::Array*> imgVec; //send it an empty imgVec
+	return classifyCellDivisionTemporalWindow( lht, frame, imgVec, devCUDA );
+}
+
 
 int CellDivisionLookupTable::classifyCellDivisionTemporalWindow(
 	lineageHyperTree& lht,
 	int frame,
-	std::vector<mylib::Array*>& imgVec, int devCUDA) 
+	std::vector<mylib::Array*>& imgVec, int devCUDA) //NEW 2021: thrCellDivisionPlaneDistance new parameter
+*/
+int CellDivisionLookupTable::classifyCellDivisionTemporalWindow(
+	lineageHyperTree& lht,
+	int frame,
+	std::vector<mylib::Array*>& imgVec, int devCUDA) //NEW 2021: thrCellDivisionPlaneDistance new parameter
+{	
+	float* im_zero;
+	float* im_plus_one;
+	return classifyCellDivisionTemporalWindow( lht, frame, imgVec, devCUDA, 25, im_zero, im_plus_one, false, supervoxel::getScale() );
+}
+
+int CellDivisionLookupTable::classifyCellDivisionTemporalWindow(
+	lineageHyperTree& lht,
+	int frame,
+	std::vector<mylib::Array*>& imgVec, int devCUDA,  double thrCellDivisionPlaneDistance, float* im_zero, float* im_plus_one, bool regularize_W4DOF, float scaleOrig[3]) //NEW 2021: thrCellDivisionPlaneDistance new parameter
 {	
 	unsigned num_true_cell_divisions=0;
 	//find all the elements that contain a division

@@ -37,7 +37,9 @@ public:
 	//main function to call from TGMM
 	//this function will disconnect edges of the elements that are below thrCDWT
 	//returns -1 if there is an error. Otherwise returns the number of true cell divisions
-	int classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, vector<mylib::Array*>& imgVec, int devCUDA) final;
+	//int classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, std::vector<mylib::Array*>& imgVec, int devCUDA, double thrCellDivisionPlaneDistance) final;
+	int classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, std::vector<mylib::Array*>& imgVec, int devCUDA, double thrCellDivisionPlaneDistance, float *im_zero, float *im_plus_one, bool regularize_W4DOF, float scaleOrig[3]) final;
+	int classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, std::vector<mylib::Array*>& imgVec, int devCUDA ) final;
 
 	//I/O functions
 	int setClassifierModel(string filename);

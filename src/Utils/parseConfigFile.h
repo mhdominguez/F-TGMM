@@ -18,6 +18,7 @@
 enum DivisionClassiferKind {
 	DivisionClassiferKind_None,
 	DivisionClassiferKind_BoostedElipticalHaarFeatures_AmatF2013,
+	DivisionClassiferKind_BoostedElipticalHaarFeatures_AmatFDominguezM2021,
 	DivisionClassiferKind_LookupTable_2018
 };
 
@@ -118,6 +119,7 @@ struct configOptionsTrackingGaussianMixture
 			float thrCDWT;//threshold for the classifier to discriminate true cell division from false ones based on 3D Haar Elliptical features along a temporal window. If the classifier score is above thrCDWT, then we consider it a true division
 			bool writeCDWTfeaturesToTrainClassifier;
 			string classifierFileCDTW;
+			bool use_2021_code = false;
 		} Amatf2013;
 
 		struct LUT {

@@ -4,6 +4,15 @@
  *  Created on: May 12, 2011
  *      Author: amatf
  */
+
+/*
+ * Copyright (C) 2020-2021 Martin Dominguez
+ * additional code for FTGMM project
+ * 
+ * Gladstone Institutes
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <string>
@@ -1221,7 +1230,7 @@ void saveSupervoxels(const string & debugPath, const lineageHyperTree & lht, int
 int main( int argc, const char** argv )
 {
     try {
-        cout << "TGMM Version " << GIT_TAG << " " << GIT_HASH << endl;
+        cout << "FTGMM Version " << GIT_TAG << " " << GIT_HASH << endl;
 
         parse_options(&argc,argv); // (ngc) options have to be after all the other args.  This modifies argc so things work with the older code below.
 
@@ -1363,7 +1372,7 @@ int main( int argc, const char** argv )
         scaleOrig[dimsImage - 1] = configOptions.anisotropyZ;
         GaussianMixtureModel::setScale(scaleOrig);
 
-        int numDiv = 10;//number of divisions per frame
+        //int numDiv = 10;//number of divisions per frame
 
         //optical flow pointers
         mylib::Array* imgFlow = NULL;
@@ -1372,7 +1381,7 @@ int main( int argc, const char** argv )
 
 
         vector<hierarchicalSegmentation*> hsVec;//stores hierarchical segmentation for frames in the temporal window
-        hsVec.reserve(10);//it shoudl match teh temporal window size
+        hsVec.reserve(configOptions.temporalWindowRadiusForLogicalRules*2);//it shoudl match teh temporal window size
 
         //vector<mylib::Array*> imgVecUINT16;//store original raw data in the temporal window for GPU Haar ceel division features(or any other thing we need in the future)
         //imgVecUINT16.reserve(2 * configOptions.temporalWindowRadiusForLogicalRules + 1);
@@ -1681,17 +1690,28 @@ int main( int argc, const char** argv )
 
                 int TMaux = frame - 1;
 
-	            TIME(recalculateCentroidForMotherAndTwoDaughters(regularize_W4DOF, lht, scaleOrig, time_series_map, TMaux));
+                TIME(recalculateCentroidForMotherAndTwoDaughters(regularize_W4DOF, lht, scaleOrig, time_series_map, TMaux));
 
-	            // At this point we're done with the procesed float data from the previous frame, so flush it here.
+                // At this point we're done with the procesed float data from the previous frame, so flush it here.
                 time_series_map.flush(frame - 1);
 
                 //analyze cell divisions and cut links in the ones that do not satisfy the midplane division constraint
                 int numCorrectionsD, numSplitsD;
-                TIME(err = lht.breakCellDivisionBasedOnCellDivisionPlaneConstraint(TMaux, configOptions.thrCellDivisionPlaneDistance, numCorrectionsD, numSplitsD));//delete short living daughter
+
+                //2021 NEW
+                if ( configOptions.cellDivisionClassifier.Amatf2013.use_2021_code ) 
+                {
+					err = 0;
+                    //TIME(err = lht.breakCellDivisionBasedOnCellDivisionPlaneConstraint(TMaux, -1, numCorrectionsD, numSplitsD));//break all cell divisions and allow classifier code to find best option for each new track (or none if track is not result of a division)
+                }
+                else
+                {
+                    TIME(err = lht.breakCellDivisionBasedOnCellDivisionPlaneConstraint(TMaux, configOptions.thrCellDivisionPlaneDistance, numCorrectionsD, numSplitsD));//delete short living daughter
+                    cout << "Cut " << numCorrectionsD << " linkages out of " << numSplitsD << " cell divisions because it did not satisfy the cell division midplane constraint with thr=" << configOptions.thrCellDivisionPlaneDistance << endl;
+                }
                 if (err > 0)
                     throw err;
-                cout << "Cut " << numCorrectionsD << " linkages out of " << numSplitsD << " cell divisions because it did not satisfy the cell division midplane constraint with thr=" << configOptions.thrCellDivisionPlaneDistance << endl;
+                
             }
             //-------perform modifications using temporal logical rules----------------------------------
             //my sliding window is t \in [frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame] => size of sliding window is 2 * configOptions.temporalWindowRadiusForLogicalRules + 1
@@ -1722,58 +1742,89 @@ int main( int argc, const char** argv )
 					//redo in case other fixes have incorporated
 					lht.deleteShortLivedDaughtersAll(lengthTMthr, frame - lengthTMthr, numCorrections, numSplits);//delete short living daughter
 					cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death before " << lengthTMthr << " time points after cell division" << endl;
-
-					//--------------------------------------------------------
-					//This is just a patch tomake sure that breakCellDivisionBasedOnCellDivisionPlaneConstraint works correctly. Som of the heuristic spatio-temporal rules change nuclei composition of supervoxels but do not update centroids.
-					//Thus, in some cases teh midplane feature was miscalculated. This a quick fix to avoid that
-					//TODO: find which heuristic rule changes the centroid and needs to be recalculated
-                    
-                    
-					int TMaux = frame - 2 * configOptions.temporalWindowRadiusForLogicalRules;
-					STATTIME_INIT;
-                    bool was_cached0,was_cached1;
-                    STATTIME(was_cached0=time_series_map.maybe_process(TMaux,hsVec[0]));
-                    STATTIME(was_cached1=time_series_map.maybe_process(TMaux+1,hsVec[1]));
-					for (list<nucleus>::iterator iterN = lht.nucleiList[TMaux].begin(); iterN != lht.nucleiList[TMaux].end(); ++iterN)
-					{
-						TreeNode<ChildrenTypeLineage>* aux = iterN->treeNodePtr;
-
-						if (aux->getNumChildren() != 2)
-							continue;//not a cell division
-
-						//recalculate centroid for mother and two daughters						
-					    float *im;
-						STATTIME(im = time_series_map.getProcessed(iterN));
-						STATTIME(lht.calculateNucleiGMMParameters<float>(iterN, regularize_W4DOF, scaleOrig,im));
-						STATTIME(im = time_series_map.getProcessed(iterN->treeNodePtr->left->data));
-						STATTIME(lht.calculateNucleiGMMParameters<float>(iterN->treeNodePtr->left->data, regularize_W4DOF, scaleOrig,im));
-						STATTIME(im = time_series_map.getProcessed(iterN->treeNodePtr->right->data));
-						STATTIME(lht.calculateNucleiGMMParameters<float>(iterN->treeNodePtr->right->data, regularize_W4DOF, scaleOrig,im));
+					
+					if ( !(configOptions.cellDivisionClassifier.Amatf2013.use_2021_code) ) 
+                    {
+						//--------------------------------------------------------
+						//This is just a patch tomake sure that breakCellDivisionBasedOnCellDivisionPlaneConstraint works correctly. Som of the heuristic spatio-temporal rules change nuclei composition of supervoxels but do not update centroids.
+						//Thus, in some cases teh midplane feature was miscalculated. This a quick fix to avoid that
+						//TODO: find which heuristic rule changes the centroid and needs to be recalculated
+	                    
+	
+						int TMaux = frame - 2 * configOptions.temporalWindowRadiusForLogicalRules;
+						STATTIME_INIT;
+	                    bool was_cached0,was_cached1;
+	                    STATTIME(was_cached0=time_series_map.maybe_process(TMaux,hsVec[0]));
+	                    STATTIME(was_cached1=time_series_map.maybe_process(TMaux+1,hsVec[1]));
+						for (list<nucleus>::iterator iterN = lht.nucleiList[TMaux].begin(); iterN != lht.nucleiList[TMaux].end(); ++iterN)
+						{
+							TreeNode<ChildrenTypeLineage>* aux = iterN->treeNodePtr;
+	
+							if (aux->getNumChildren() != 2)
+								continue;//not a cell division
+	
+							//recalculate centroid for mother and two daughters						
+						    float *im;
+							STATTIME(im = time_series_map.getProcessed(iterN));
+							STATTIME(lht.calculateNucleiGMMParameters<float>(iterN, regularize_W4DOF, scaleOrig,im));
+							STATTIME(im = time_series_map.getProcessed(iterN->treeNodePtr->left->data));
+							STATTIME(lht.calculateNucleiGMMParameters<float>(iterN->treeNodePtr->left->data, regularize_W4DOF, scaleOrig,im));
+							STATTIME(im = time_series_map.getProcessed(iterN->treeNodePtr->right->data));
+							STATTIME(lht.calculateNucleiGMMParameters<float>(iterN->treeNodePtr->right->data, regularize_W4DOF, scaleOrig,im));
+						}
+						STATTIME_READ;
+	                    if (!was_cached0)
+	                        time_series_map.flush(TMaux);
+	                    if (!was_cached1)
+	                        time_series_map.flush(TMaux+1);
+						//-----------------------------------------------------------
 					}
-					STATTIME_READ;
-                    if (!was_cached0)
-                        time_series_map.flush(TMaux);
-                    if (!was_cached1)
-                        time_series_map.flush(TMaux+1);
-					//-----------------------------------------------------------
-
 					//analyze cell divisions and cut links in the ones that do not satisfy the midplane division constraint
-					err = lht.breakCellDivisionBasedOnCellDivisionPlaneConstraint(frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, configOptions.thrCellDivisionPlaneDistance, numCorrections, numSplits);//delete short living daughter
+
+                    //2021 NEW
+                    if ( configOptions.cellDivisionClassifier.Amatf2013.use_2021_code ) 
+                    {
+						err = 0;
+                        //err = lht.breakCellDivisionBasedOnCellDivisionPlaneConstraint(frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, -1, numCorrections, numSplits);//delete short living daughter
+                    }
+                    else
+                    {
+                        err = lht.breakCellDivisionBasedOnCellDivisionPlaneConstraint(frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, configOptions.thrCellDivisionPlaneDistance, numCorrections, numSplits);//delete short living daughter
+                        cout << "Cut " << numCorrections << " linkages out of " << numSplits << " cell divisions because it did not satisfy the cell division midplane constraint with thr=" << configOptions.thrCellDivisionPlaneDistance << endl;
+                    }
 					if (err > 0)
 						return err;
-					cout << "Cut " << numCorrections << " linkages out of " << numSplits << " cell divisions because it did not satisfy the cell division midplane constraint with thr=" << configOptions.thrCellDivisionPlaneDistance << endl;
+					
 				} else {
 					cout << "======WARNING: you have deactivated temporal logical rules (short-lived daughter threshold < 1)===================" << endl;
 				}
 
             //run cell division discrimination based on 3D Haar elliptical features on a temporal window
                 {
-                    //probably build a class that storesthe last two options and include methods to calculate all this
-                    TIME(numCorrections = cdwtClassifier->classifyCellDivisionTemporalWindow(lht, frame - configOptions.temporalWindowRadiusForLogicalRules, time_series_map.imgVecUINT16, devCUDA));
+					//2021 NEW
+                    if ( configOptions.cellDivisionClassifier.Amatf2013.use_2021_code ) 
+                    {
+						int frameOffset = frame - configOptions.temporalWindowRadiusForLogicalRules;
+						bool was_cached0,was_cached1;
+						STATTIME_INIT;
+	                    STATTIME(was_cached0=time_series_map.maybe_process(frameOffset,hsVec[configOptions.temporalWindowRadiusForLogicalRules]));
+	                    STATTIME(was_cached1=time_series_map.maybe_process(frameOffset+1,hsVec[configOptions.temporalWindowRadiusForLogicalRules+1]));
+						STATTIME_READ;
+						TIME(numCorrections = cdwtClassifier->classifyCellDivisionTemporalWindow(lht, frameOffset, time_series_map.imgVecUINT16, devCUDA, configOptions.thrCellDivisionPlaneDistance,time_series_map.getProcessed(frameOffset),time_series_map.getProcessed(frameOffset+1),regularize_W4DOF, scaleOrig ));
+						if (!was_cached0)
+							time_series_map.flush(frameOffset);
+						if (!was_cached1)
+							time_series_map.flush(frameOffset+1);
+                    }
+                    else
+                    {
+						TIME(numCorrections = cdwtClassifier->classifyCellDivisionTemporalWindow(lht, frame - configOptions.temporalWindowRadiusForLogicalRules, time_series_map.imgVecUINT16, devCUDA));
+						
+					}					
                     if (numCorrections < 0)
                         return numCorrections;
                     TIME(numSplits = cdwtClassifier->getNumCellDivisions());
-                    cout << "Split " << numSplits - numCorrections << " out of " << numSplits << " proposed cell divisions because cell division classifier with temporal window with thr =" << cdwtClassifier->getThrCDWT() << endl;
+                    cout << "Corrected " << numCorrections << " out of " << numSplits << " initially proposed cell divisions because cell division classifier with temporal window with thr =" << cdwtClassifier->getThrCDWT() << endl;
                 }
 
                 //background detection is always run (then we can decide what to do with the results)

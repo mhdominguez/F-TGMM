@@ -12,7 +12,14 @@
  *        
  *
  */
-
+/*
+ * Copyright (C) 2020-2021 Martin Dominguez
+ * additional code for FTGMM project
+ * 
+ * Gladstone Institutes
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 #include <assert.h>
 #include <algorithm>
 #include <vector>
@@ -153,6 +160,270 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchFor
 
 //=================================================================
 int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters(
+	const vector< TreeNode< ChildrenTypeLineage >* >& daughterNodes, 
+	const vector< TreeNode< ChildrenTypeLineage >* >& parentNodes, 
+	const vector<mylib::Array*>& imgVec, 
+	vector<cellDivisionWithTemporalWindow>& cdtwVec, 
+	int devCUDA, 
+	int symmetry)
+{
+	assert( imgVec.size() == 2*temporalWindowRadius + 1 );
+	assert( daughterNodes.size() == parentNodes.size() );
+
+	if( daughterNodes.empty() == true )
+		return 0;
+	
+	int numEllipsoids = daughterNodes.size(); //for each eligible parent, will multiply by 3 later
+	const int sizeW = dimsImage * (1+dimsImage) / 2;
+	int err = 0;
+
+	//allocate memory for centroid and precision matrix
+	double *m = new double[dimsImage * numEllipsoids];
+	double *W = new double[sizeW  * numEllipsoids];
+	long long int *dimsVec = new long long int[dimsImage];
+	
+	//auxliary variables
+	TreeNode< ChildrenTypeLineage >* auxNode = NULL;
+	vector< TreeNode< ChildrenTypeLineage >* > auxNodeVec(numEllipsoids, NULL);//to store pointer for each lineage
+	vector< TreeNode< ChildrenTypeLineage >* > auxNodeVecDR(numEllipsoids, NULL), auxNodeVecDL(numEllipsoids, NULL);//for left and right daughter
+	//cout<<"calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point A1"<<endl;
+	//setup return elements
+	cdtwVec.resize( numEllipsoids );
+	for(int ii = 0; ii < numEllipsoids; ii++)
+	{
+		assert(parentNodes[ii]->getNumChildren() == 1);
+		/*if(parentNodes[ii]->getNumChildren() != 1)
+		{
+			cout << "  cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters parentNodes " << ii << " has " << parentNodes[ii]->getNumChildren() << "children!" << endl;
+		}*/
+		cdtwVec[ii].fHaarVec.resize(1 + 2*temporalWindowRadius);
+		auxNodeVec[ii] = parentNodes[ii];
+		cdtwVec[ii].cellDivisionPtr = parentNodes[ii];//initialize this pointer
+		cdtwVec[ii].cellDivisionDaughterPtr = daughterNodes[ii];
+	}
+	
+	/*
+	//setup return elements
+	cdtwVec.resize( numEllipsoids ); 
+	for(int ii = 0, iii=0; ii < numEllipsoids; ii+=3, iii++)
+	{
+		//assert(divisionNodes[ii]->getNumChildren() == 2);
+		cdtwVec[ii].fHaarVec.resize(1 + 2*temporalWindowRadius);
+		cdtwVec[ii+1].fHaarVec.resize(1 + 2*temporalWindowRadius);
+		cdtwVec[ii+2].fHaarVec.resize(1 + 2*temporalWindowRadius);
+		
+		auxNodeVec[ii] = parentNodes1[iii];
+		auxNodeVec[ii+1] = parentNodes2[iii];
+		auxNodeVec[ii+2] = parentNodes3[iii];
+		
+		cdtwVec[ii].cellDivisionPtr = parentNodes1[iii];//initialize this pointer
+		cdtwVec[ii+1].cellDivisionPtr = parentNodes2[iii];//initialize this pointer
+		cdtwVec[ii+2].cellDivisionPtr = parentNodes3[iii];//initialize this pointer
+		
+		cdtwVec[ii].cellDivisionDaughterPtr = divisionNodes[iii];//initialize this pointer
+		cdtwVec[ii+1].cellDivisionDaughterPtr = divisionNodes[iii];//initialize this pointer
+		cdtwVec[ii+2].cellDivisionDaughterPtr = divisionNodes[iii];//initialize this pointer		
+	}
+*/
+	//cout<<"calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point A2"<<endl;
+	//calculate features backwards (including cell division point)
+	for( int tt = temporalWindowRadius; tt >= 0; tt--)	
+	{
+		err = calculateBasicEllipticalHaarFeaturesBatchAtTM( auxNodeVec, imgVec[tt], cdtwVec, tt, devCUDA, symmetry, &m , &W, &dimsVec);
+		if( err > 0 )
+			return err;
+		//move backwards in the lineage
+		for(int ii = 0; ii < numEllipsoids; ii++)
+		{
+			if( auxNodeVec[ii] != NULL )
+			{				
+				auxNodeVec[ii] = auxNodeVec[ii]->parent;
+			}
+		}				
+	}
+
+	//cout<<"calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point B1"<<endl;
+	
+	//calculate features forward (we center the box in the center of the two daughters)
+	float d1, d2;
+	
+	for(int ii = 0; ii < numEllipsoids; ii++)	
+	{
+		if ( parentNodes[ii]->left != NULL )
+			auxNodeVecDL[ii] = parentNodes[ii]->left;
+		else if ( parentNodes[ii]->right != NULL )
+			auxNodeVecDL[ii] = parentNodes[ii]->right;
+		auxNodeVecDR[ii] = daughterNodes[ii];
+	}
+	
+	//cout<<"calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point B2"<<endl;
+
+	//iterate over time points
+	vector<bool> isDead(numEllipsoids, false);
+	for( int tt = temporalWindowRadius + 1; tt < 2* temporalWindowRadius + 1; tt++)
+	{
+
+		
+		//update centroids, precision matrix and isDead before calling Haar elliptical features
+		if( useFixPrecisionMatrix == true )
+		{
+			for(int ii = 0; ii < numEllipsoids; ii++)
+			{
+				if( auxNodeVecDL[ii] == NULL || auxNodeVecDR[ii] == NULL )
+				{
+					isDead[ii] = true;
+					//we just preserve old m and W although we will disregard results
+				}else{//we have both daughters
+					isDead[ii] = false;
+					for(int aa = 0; aa<dimsImage; aa++)
+					{
+						m[ii + aa * numEllipsoids] = 0.5 * (auxNodeVecDL[ii]->data->centroid[aa] + auxNodeVecDR[ii]->data->centroid[aa]);
+					}
+					for(int aa = 0; aa<sizeW; aa++)
+					{
+						W[ii + aa * numEllipsoids] = precisionWfix[aa];
+					}
+				}
+			}
+		}else{
+			double auxW[sizeW], auxM[dimsImage];
+
+			for(int ii = 0; ii < numEllipsoids; ii++)
+			{
+				if( auxNodeVecDL[ii] == NULL || auxNodeVecDR[ii] == NULL )
+				{
+					isDead[ii] = true;
+					//we just preserve old m and W although we will disregard results
+				}else{//we have both daughters
+					isDead[ii] = false;
+					//assert( supervoxel::dataSizeInBytes / (supervoxel::dataDims[0] * supervoxel::dataDims[1] * supervoxel::dataDims[2]) == 2 );//uint16 pointers					
+					//cellDivisionWithTemporalWindow::calculatePrecisionMatrixForJointDuaghters<mylib::uint16>(*(auxNodeVecDL[ii]->data), *(auxNodeVecDR[ii]->data), auxM, auxW);
+					cellDivisionWithTemporalWindow::calculatePrecisionMatrixForJointDuaghters(*(auxNodeVecDL[ii]->data), *(auxNodeVecDR[ii]->data), auxW);		//not using the image information			
+					for(int aa = 0; aa<dimsImage; aa++)
+					{
+						//m[ii + aa * numEllipsoids] = auxM[aa];
+						m[ii + aa * numEllipsoids] = 0.5 * (auxNodeVecDL[ii]->data->centroid[aa] + auxNodeVecDR[ii]->data->centroid[aa]);
+					}
+					for(int aa = 0; aa<sizeW; aa++)
+					{						
+						W[ii + aa * numEllipsoids] = auxW[aa];
+					}
+				}
+			}
+		}
+
+		//calculate features
+		err = calculateBasicEllipticalHaarFeaturesBatchAtTM( isDead, imgVec[tt], cdtwVec, tt, devCUDA, symmetry, m , W, &dimsVec);
+		if( err > 0 )
+			return err;
+		//move forwards in the lineage
+		for(int ii = 0; ii < numEllipsoids; ii++)
+		{
+			//left daughter
+			auxNodeVecDL[ii] = moveForwardInlineageEvenWithCellDivision(auxNodeVecDL[ii]);
+			//right daughter
+			auxNodeVecDR[ii] = moveForwardInlineageEvenWithCellDivision(auxNodeVecDR[ii]);			
+		}				
+	}	
+/*
+	for(int ii = 0, iii=0; ii < numEllipsoids; ii+=3, iii++)
+	{
+		if ( parentNodes1[iii] != NULL )
+			auxNodeVecDL[ii] = parentNodes1[iii]->left;
+		else
+			auxNodeVecDL[ii] = NULL;
+		if ( parentNodes2[iii] != NULL )
+			auxNodeVecDL[ii+1] = parentNodes2[iii]->left;
+		else
+			auxNodeVecDL[ii+1] = NULL;
+		if ( parentNodes3[iii] != NULL )
+			auxNodeVecDL[ii+2] = parentNodes3[iii]->left;
+		else
+			auxNodeVecDL[ii+2] = NULL;
+	}
+	//cout<<"calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point B2"<<endl;
+	for(int ii = 0, iii=0; ii < numEllipsoids; ii+=3, iii++)	
+	{
+		auxNodeVecDR[ii] = divisionNodes[iii];
+		auxNodeVecDR[ii+1] = divisionNodes[iii];
+		auxNodeVecDR[ii+2] = divisionNodes[iii];
+	}	
+	//cout<<"calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point B3"<<endl;
+	//iterate over time points
+	vector<bool> isDead(numEllipsoids, false);
+	for( int tt = temporalWindowRadius + 1; tt < 2* temporalWindowRadius + 1; tt++)
+	{
+		//update centroids, precision matrix and isDead before calling Haar elliptical features
+		if( useFixPrecisionMatrix == true )
+		{
+			for(int ii = 0; ii < numEllipsoids; ii++)
+			{
+				if( auxNodeVecDL[ii] == NULL || auxNodeVecDR[ii] == NULL )
+				{
+					isDead[ii] = true;
+					//we just preserve old m and W although we will disregard results
+				}else{//we have both daughters
+					isDead[ii] = false;
+					for(int aa = 0; aa<dimsImage; aa++)
+					{
+						m[ii + aa * numEllipsoids] = 0.5 * (auxNodeVecDL[ii]->data->centroid[aa] + auxNodeVecDR[ii]->data->centroid[aa]);
+					}
+					for(int aa = 0; aa<sizeW; aa++)
+					{
+						W[ii + aa * numEllipsoids] = precisionWfix[aa];
+					}
+				}
+			}
+		}else{
+			double auxW[sizeW], auxM[dimsImage];
+
+			for(int ii = 0; ii < numEllipsoids; ii++)
+			{
+				if( auxNodeVecDL[ii] == NULL || auxNodeVecDR[ii] == NULL )
+				{
+					isDead[ii] = true;
+					//we just preserve old m and W although we will disregard results
+				}else{//we have both daughters
+					isDead[ii] = false;
+					//assert( supervoxel::dataSizeInBytes / (supervoxel::dataDims[0] * supervoxel::dataDims[1] * supervoxel::dataDims[2]) == 2 );//uint16 pointers					
+					//cellDivisionWithTemporalWindow::calculatePrecisionMatrixForJointDuaghters<mylib::uint16>(*(auxNodeVecDL[ii]->data), *(auxNodeVecDR[ii]->data), auxM, auxW);
+					cellDivisionWithTemporalWindow::calculatePrecisionMatrixForJointDuaghters(*(auxNodeVecDL[ii]->data), *(auxNodeVecDR[ii]->data), auxW);		//not using the image information			
+					for(int aa = 0; aa<dimsImage; aa++)
+					{
+						//m[ii + aa * numEllipsoids] = auxM[aa];
+						m[ii + aa * numEllipsoids] = 0.5 * (auxNodeVecDL[ii]->data->centroid[aa] + auxNodeVecDR[ii]->data->centroid[aa]);
+					}
+					for(int aa = 0; aa<sizeW; aa++)
+					{						
+						W[ii + aa * numEllipsoids] = auxW[aa];
+					}
+				}
+			}
+		}
+
+		//calculate features
+		err = calculateBasicEllipticalHaarFeaturesBatchAtTM( isDead, imgVec[tt], cdtwVec, tt, devCUDA, symmetry, m , W, &dimsVec);
+		if( err > 0 )
+			return err;
+		//move forwards in the lineage
+		for(int ii = 0; ii < numEllipsoids; ii++)
+		{
+			//left daughter
+			auxNodeVecDL[ii] = moveForwardInlineageEvenWithCellDivision(auxNodeVecDL[ii]);
+			//right daughter
+			auxNodeVecDR[ii] = moveForwardInlineageEvenWithCellDivision(auxNodeVecDR[ii]);			
+		}				
+	}*/
+
+	//release memory
+	delete[] m;
+	delete[] W;
+	delete[] dimsVec;
+
+	return 0;
+}
+//=================================================================
+int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters(
 	const vector< TreeNode< ChildrenTypeLineage >* >& divisionNodes, 
 	const vector<mylib::Array*>& imgVec, 
 	vector<cellDivisionWithTemporalWindow>& cdtwVec, 
@@ -205,7 +476,6 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchFor
 	}
 
 
-	
 	//calculate features forward (we center the box in the center of the two daughters)
 	float d1, d2;
 
@@ -289,7 +559,6 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchFor
 
 	return 0;
 }
-
 //============================================================================================
 TreeNode<ChildrenTypeLineage>* cellDivisionWithTemporalWindow::moveForwardInlineageEvenWithCellDivision(TreeNode<ChildrenTypeLineage>* auxNode)
 {
@@ -442,6 +711,248 @@ int cellDivisionWithTemporalWindow::calculateFeaturesSingleWindowForDaughters()
 
 //===============================================================================================
 //this function is meant for speed, not for inteligibility
+int cellDivisionWithTemporalWindow::calculateFeaturesSingleWindowForDaughters_featureSelection_v1_2021()
+{
+	
+	assert(fHaarVec.size() ==  2 * temporalWindowRadius + 1);
+
+	//features are added automatimatically to this->f
+	f.clear();			
+#ifdef CDWT_SAVE_FEATURE_NAME	
+	fName.clear();
+#endif
+	vector<float> timeSeries( getTotalTemporalWindowSizeSingleWindowForDaughters() );
+
+
+
+	//temporal features for ring intensity
+	for( int ii = 0; ii <= 1; ii++ )//only first 2 rings seem important
+	{		
+		//generate time series
+		for( size_t jj = 0; jj < timeSeries.size(); jj++)
+			timeSeries[jj] = fHaarVec[jj].ringAvgIntensity[ii];
+
+#ifdef CDWT_SAVE_FEATURE_NAME	
+		setFeaturePrefix(string("ellipHaar3D_ring"),ii);
+#endif
+		//calculate features
+		temporalFeatureExtractionSingleWindowForDaughters(timeSeries);				
+
+
+		if( basicEllipticalHaarFeatureVector::useDoGfeatures == true ) // do the same for DoG
+		{
+			//generate time series
+			for( size_t jj = 0; jj < timeSeries.size(); jj++)
+				timeSeries[jj] = fHaarVec[jj].ringAvgIntensityDoG[ii];
+
+#ifdef CDWT_SAVE_FEATURE_NAME	
+		setFeaturePrefix(string("ellipHaar3D_ring_DoG"),ii);
+#endif
+			//calculate features
+			temporalFeatureExtractionSingleWindowForDaughters(timeSeries);
+
+		}
+	}
+
+
+	//temporal features for excentricity values
+	//for( int ii = 0; ii < dimsImage*(dimsImage-1)/2; ii++ )
+	for( int ii = 1; ii <= 1; ii++ )//only excentricity 1 seems relevant
+	{
+		//generate time series
+		for( size_t jj = 0; jj < timeSeries.size(); jj++)
+			timeSeries[jj] = fHaarVec[jj].excentricity[ii];
+#ifdef CDWT_SAVE_FEATURE_NAME	
+		setFeaturePrefix(string("excentricity"),ii);
+#endif
+		//calculate features
+		temporalFeatureExtractionSingleWindowForDaughters(timeSeries);	
+	}
+	
+	//---------------------------------------------------------------------------
+	//---------------------------lineage-based features -----------------------------------
+	
+	int nTS = getTotalTemporalWindowSize();
+	float auxF;
+	timeSeries.resize( nTS ); //preallocation
+	TreeNode<ChildrenTypeLineage>* auxNode;
+
+	//extract a vector of pointers to each point in the lineage around teh cell division (NULL indicates death or birth)
+	vector< TreeNode<ChildrenTypeLineage>* > lineageVec;
+	//lineagePointersWithinTemporalWindowWithCellDivision( lineageVec ); -- function is now inlined below
+		lineageVec.resize( getTotalTemporalWindowSize() );
+		
+		//assert( cellDivisionPtr->getNumChildren() == 2);
+	
+		/*if( cellDivisionPtr == NULL )
+		{
+			cout<<"WARNING:cellDivisionWithTemporalWindow::calculateFeaturesSingleWindowForDaughters_featureSelection_v1_2021::lineagePointersWithinTemporalWindowWithCellDivision: cellDivisionPtr = NULL"<<endl;
+			//return;
+		}*/
+
+		//trace backwards (including cell division point)
+		TreeNode<ChildrenTypeLineage>* auxNode_lineagePointersInline = cellDivisionPtr;
+		for(int tt = temporalWindowRadius; tt >= 0; tt--)
+		{
+			lineageVec[tt] = auxNode_lineagePointersInline;
+	
+			if( auxNode_lineagePointersInline != NULL )
+				auxNode_lineagePointersInline = auxNode_lineagePointersInline->parent;		
+		}
+	
+		//trace forward left daughter
+		int ttOffset = temporalWindowRadius + 1;//to save in the correct place in fHaarVec
+		for(int ch = 0; ch < 2; ch++)
+		{
+			if( ch == 0 )
+			{
+				if ( cellDivisionPtr->left != NULL )
+					auxNode_lineagePointersInline = cellDivisionPtr->left;
+				else if ( cellDivisionPtr->right != NULL )
+					auxNode_lineagePointersInline = cellDivisionPtr->right;
+				else // should not get here, means lineage stops at proposed division point
+					auxNode_lineagePointersInline = cellDivisionPtr;
+			}else{
+				auxNode_lineagePointersInline = cellDivisionDaughterPtr;
+			}
+			//iterate over time points
+			for( int tt = temporalWindowRadius + 1; tt < 2* temporalWindowRadius + 1; tt++)
+			{
+				lineageVec[ttOffset] = auxNode_lineagePointersInline;
+				auxNode_lineagePointersInline = moveForwardInlineageEvenWithCellDivision(auxNode_lineagePointersInline);			
+				ttOffset++;
+			}
+		}	
+
+	assert( lineageVec.size() == timeSeries.size());
+
+	
+	
+	//----------------distance of all cells to the midplane defined by two daughters------------------------------
+	float *centroidDL;
+	if(cellDivisionPtr->left != NULL)
+		centroidDL = cellDivisionPtr->left->data->centroid;
+	else if ( cellDivisionPtr->right != NULL )
+		centroidDL = cellDivisionPtr->right->data->centroid;
+	else // should not get here, means lineage stops at proposed division point
+		centroidDL = cellDivisionPtr->data->centroid;
+	float *centroidDR = cellDivisionDaughterPtr->data->centroid;
+
+	for(int ii = 0; ii < nTS; ii++)
+	{
+		if( lineageVec[ii] == NULL )
+			timeSeries[ii] = 100.0f;//default large number
+		else
+			timeSeries[ii] = lineageHyperTree::cellDivisionPlaneDistance(lineageVec[ii]->data->centroid, centroidDL, centroidDR);
+	}
+
+#ifdef CDWT_SAVE_FEATURE_NAME	
+		setFeaturePrefix(string("dist2midplane"),0);
+#endif
+	//calculate features
+	temporalFeatureExtraction(timeSeries);
+
+
+	//----------------distance between daughters------------------------------	
+	int tt;
+	for(tt = 0; tt <= temporalWindowRadius; tt++)
+	{
+		timeSeries[tt] = 0;//at the beginning there are no daughters
+	}
+	for(; tt <= 2 * temporalWindowRadius; tt++)
+	{
+		if( lineageVec[tt] == NULL || lineageVec[tt+ temporalWindowRadius] == NULL )
+		{
+			timeSeries[tt] = 0;
+			timeSeries[tt+ temporalWindowRadius] = 0;
+		}else{
+			auxF = lineageVec[tt]->data->Euclidean2Distance( *(lineageVec[tt + temporalWindowRadius]->data), supervoxel::getScale() );
+			timeSeries[tt] = auxF;
+			timeSeries[tt+ temporalWindowRadius] = auxF;//I cna use this space for some other metric involving the two daughters
+		}
+	}
+	#ifdef CDWT_SAVE_FEATURE_NAME	
+		setFeaturePrefix(string("distBetweenDaughters"),0);
+#endif
+	//calculate features
+	temporalFeatureExtraction(timeSeries, false, false);//no multiscale needed
+
+
+	//----------------difference in volume (pixels) with respect to parent------------------------------	
+	for(int ii = 0; ii < nTS; ii++)
+	{
+		auxNode = lineageVec[ii];
+		if( auxNode != NULL && auxNode->parent != NULL )
+		{
+			auxF = lineageHyperTree::getNucleusVolume(*(auxNode->data));
+			timeSeries[ii] = ( auxF - lineageHyperTree::getNucleusVolume(*(auxNode->parent->data)) ) / auxF;
+		}else{
+			timeSeries[ii] = 0.0f;
+		}
+	}
+
+#ifdef CDWT_SAVE_FEATURE_NAME	
+		setFeaturePrefix(string("delta_volume"),0);
+#endif
+	//calculate features
+	temporalFeatureExtraction(timeSeries);
+
+	//----------------offset Jaccard distance with respect to parent------------------------------	
+	for(int ii = 0; ii < nTS; ii++)
+	{
+		auxNode = lineageVec[ii];
+		if( auxNode != NULL && auxNode->parent != NULL )
+		{
+			timeSeries[ii] = lineageHyperTree::JaccardDistance(auxNode, true);
+		}else{
+			timeSeries[ii] = 2.0f;//Jaccard distanc eis bounded by 1.0
+		}
+	}
+#ifdef CDWT_SAVE_FEATURE_NAME	
+		setFeaturePrefix(string("delta_Jaccard_wOffset"),0);
+#endif
+	//calculate features
+	temporalFeatureExtraction(timeSeries);
+
+	//----------------Jaccard distance with respect to parent------------------------------	
+	for(int ii = 0; ii < nTS; ii++)
+	{
+		auxNode = lineageVec[ii];
+		if( auxNode != NULL && auxNode->parent != NULL )
+		{
+			timeSeries[ii] = lineageHyperTree::JaccardDistance(auxNode, false);
+		}else{
+			timeSeries[ii] = 2.0f;//Jaccard distanc eis bounded by 1.0
+		}
+	}
+
+#ifdef CDWT_SAVE_FEATURE_NAME	
+		setFeaturePrefix(string("delta_Jaccard"),0);
+#endif
+	//calculate features
+	temporalFeatureExtraction(timeSeries, false, false);//no multi-scale needed
+
+	//----------------absolute displacement with respect to parent------------------------------	
+	for(int ii = 0; ii < nTS; ii++)
+	{
+		auxNode = lineageVec[ii];
+		if( auxNode != NULL && auxNode->parent != NULL )
+		{
+			timeSeries[ii] = auxNode->data->Euclidean2Distance( *(auxNode->parent->data), supervoxel::getScale() );
+		}else{
+			timeSeries[ii] = 100.0f;//deafult last number
+		}
+	}
+	#ifdef CDWT_SAVE_FEATURE_NAME	
+		setFeaturePrefix(string("delta_displacement"),0);
+#endif
+	//calculate features
+	temporalFeatureExtraction(timeSeries, false, false);		
+	
+	return 0;
+		
+}
+
 
 int cellDivisionWithTemporalWindow::calculateFeaturesSingleWindowForDaughters_featureSelection_v1()
 {
@@ -1409,7 +1920,7 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchAtT
 	if( *dimsVec == NULL )
 		*dimsVec = new long long int[dimsImage];
 
-
+	//cout<<"WARNING:calculateBasicEllipticalHaarFeaturesBatchAtTM2 called..."<<endl;
 
 	//----------------in order to minimize memory comsumption during TGMM execution------------------
 	//the problem is that I trained in raw data (without local background subtraction using supervoxels + otsu, so I am not using this option anymore because the data does not look like the training data
@@ -1503,7 +2014,7 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchAtT
 //==========================================================
 int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchAtTM(const vector< TreeNode< ChildrenTypeLineage >* >& auxNodeVec, mylib::Array* img, vector<cellDivisionWithTemporalWindow>& cdtwVec, int relativeTimeWithinWindow,int devCUDA, int symmetry, double **m , double **W, long long int **dimsVec)
 {	
-
+	//cout<<"WARNING:calculateBasicEllipticalHaarFeaturesBatchAtTM1 called..."<<endl;
 	
 	int numEllipsoids = auxNodeVec.size();
 	int sizeW = dimsImage * (1+dimsImage) / 2;
@@ -1557,7 +2068,7 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchAtT
 		}
 	}
 
-	
+	//cout<<"   calculateBasicEllipticalHaarFeaturesBatchAtTM1 point A..."<<endl;
 	//----------------in order to minimize memory comsumption during TGMM execution------------------
 	bool imgWasNull = false;
     // (ngc) not sure this code path is ever used
@@ -1643,7 +2154,7 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchAtT
 		img = NULL;
 	}
 
-	
+	//cout<<"   calculateBasicEllipticalHaarFeaturesBatchAtTM1 point B..."<<endl;
 	//recalculate excentricity with the real W matrix to preserve this shape information
 	if( useFixPrecisionMatrix == true )
 	{
@@ -1673,7 +2184,7 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchAtT
 			}
 		}
 	}
-
+	//cout<<"   calculateBasicEllipticalHaarFeaturesBatchAtTM1 point C..."<<endl;
 	return 0;
 
 }
