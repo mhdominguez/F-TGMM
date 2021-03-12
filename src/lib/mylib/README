@@ -1,0 +1,18 @@
+# Mylib
+
+MSVC will take a long time to build the release version of mylib.
+
+It's also a part of the code base that never really changes.  To reduce 
+build times, I'll build a static optimized version here and check the 
+static library in with the repository.  This will have to get updated for
+different operating systems.
+
+# Building
+
+The `scripts` folder has scripts to help build and configure things.
+Those scripts invoke the CMake build system to generate, for example,
+a Visual Studio solution.  MSBuild is then invoked to actually build 
+everything.  So many layers!
+
+
+
