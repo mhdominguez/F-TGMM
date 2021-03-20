@@ -1060,7 +1060,7 @@ basicEllipticalHaarFeatureVector** calculateEllipticalHaarFeatures(const double 
 		//decide number of slices per block		
 		long long int maxSlicesPerBlock = floor( (float(freeGPUmem) - float(boxGPUmem)) / float(sliceMem) );
 
-		if( maxSlicesPerBlock <= maxDiameterBox )
+		if( maxSlicesPerBlock <= maxDiameterBox + 1 )
 		{
 			cout<<"ERROR: calculateEllipticalHaarFeatures: GPU does not have enough memory to perform feature computation per blocks. maxSlicesPerBlock = "<<maxSlicesPerBlock<<endl;
 			cout<<"Total GPU mem = "<<totalGPUmem<<";Free GPU mem = "<<freeGPUmem<<";Box GPU mem = "<<boxGPUmem<<"; Bytes per slice = "<<sliceMem<<endl;

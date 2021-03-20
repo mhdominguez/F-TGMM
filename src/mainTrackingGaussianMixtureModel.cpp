@@ -1637,8 +1637,18 @@ int main( int argc, const char** argv )
             size_t vecGM_ref_nb = vecGM.size();//I need to save it for later
             //delete[] vecGMHOST; //we need it to estimate local likelihood before split
 
-
+            if ( configOptions.cellDivisionClassifier.Amatf2013.use_2021_code )
+            {
+                //2021 division detection is resource intensive; free all the host and device memory that we can
+                GMEMreleaseMemoryWithSupervoxels(&queryCUDA, &imgDataCUDA, &rnkCUDA, &indCUDA, &indCUDAtr, &centroidLabelPositionCUDA, &labelListPtrCUDA);
+                delete[]queryHOST;
+                delete[]imgDataHOST;
+                delete[]centroidLabelPositionHOST;
+                delete[]centroidLabelWeightHOST;
+                delete[]labelListPtrHOST;
+			}
             //----------------debug--------------------------------------------
+
 
 
 #ifdef DEBUG_TGMM_XML_FILES
@@ -1938,15 +1948,20 @@ int main( int argc, const char** argv )
                 imgFlowMaskPtr = NULL;
             }
 
-
-            GMEMreleaseMemoryWithSupervoxels(&queryCUDA, &imgDataCUDA, &rnkCUDA, &indCUDA, &indCUDAtr, &centroidLabelPositionCUDA, &labelListPtrCUDA);
-            delete[]queryHOST;
-            delete[]imgDataHOST;
-            delete[]centroidLabelPositionHOST;
-            delete[]centroidLabelWeightHOST;
-            delete[]labelListPtrHOST;
-
+            if ( !(configOptions.cellDivisionClassifier.Amatf2013.use_2021_code) ) 
+			{
+                GMEMreleaseMemoryWithSupervoxels(&queryCUDA, &imgDataCUDA, &rnkCUDA, &indCUDA, &indCUDAtr, &centroidLabelPositionCUDA, &labelListPtrCUDA);
+                delete[]queryHOST;
+                delete[]imgDataHOST;
+                delete[]centroidLabelPositionHOST;
+                delete[]centroidLabelWeightHOST;
+                delete[]labelListPtrHOST;
+			}
             cout << toc(&tt) << " secs" << endl;
+			
+			/*DEBUG -- detect potential memory leaks
+			HANDLE_ERROR( cudaSetDevice( devCUDA ) );
+			HANDLE_ERROR( cudaDeviceReset() );*/
 
 
             //------------------------------------------------------------------------------

@@ -225,7 +225,7 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchFor
 		cdtwVec[ii+2].cellDivisionDaughterPtr = divisionNodes[iii];//initialize this pointer		
 	}
 */
-	//cout<<"calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point A2"<<endl;
+	//cout<<"  calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point A2"<<endl;
 	//calculate features backwards (including cell division point)
 	for( int tt = temporalWindowRadius; tt >= 0; tt--)	
 	{
@@ -242,7 +242,7 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchFor
 		}				
 	}
 
-	//cout<<"calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point B1"<<endl;
+	//cout<<"  calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point B1"<<endl;
 	
 	//calculate features forward (we center the box in the center of the two daughters)
 	float d1, d2;
@@ -256,7 +256,7 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchFor
 		auxNodeVecDR[ii] = daughterNodes[ii];
 	}
 	
-	//cout<<"calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point B2"<<endl;
+	//cout<<"  calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point B2"<<endl;
 
 	//iterate over time points
 	vector<bool> isDead(numEllipsoids, false);
@@ -325,95 +325,6 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchFor
 			auxNodeVecDR[ii] = moveForwardInlineageEvenWithCellDivision(auxNodeVecDR[ii]);			
 		}				
 	}	
-/*
-	for(int ii = 0, iii=0; ii < numEllipsoids; ii+=3, iii++)
-	{
-		if ( parentNodes1[iii] != NULL )
-			auxNodeVecDL[ii] = parentNodes1[iii]->left;
-		else
-			auxNodeVecDL[ii] = NULL;
-		if ( parentNodes2[iii] != NULL )
-			auxNodeVecDL[ii+1] = parentNodes2[iii]->left;
-		else
-			auxNodeVecDL[ii+1] = NULL;
-		if ( parentNodes3[iii] != NULL )
-			auxNodeVecDL[ii+2] = parentNodes3[iii]->left;
-		else
-			auxNodeVecDL[ii+2] = NULL;
-	}
-	//cout<<"calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point B2"<<endl;
-	for(int ii = 0, iii=0; ii < numEllipsoids; ii+=3, iii++)	
-	{
-		auxNodeVecDR[ii] = divisionNodes[iii];
-		auxNodeVecDR[ii+1] = divisionNodes[iii];
-		auxNodeVecDR[ii+2] = divisionNodes[iii];
-	}	
-	//cout<<"calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters point B3"<<endl;
-	//iterate over time points
-	vector<bool> isDead(numEllipsoids, false);
-	for( int tt = temporalWindowRadius + 1; tt < 2* temporalWindowRadius + 1; tt++)
-	{
-		//update centroids, precision matrix and isDead before calling Haar elliptical features
-		if( useFixPrecisionMatrix == true )
-		{
-			for(int ii = 0; ii < numEllipsoids; ii++)
-			{
-				if( auxNodeVecDL[ii] == NULL || auxNodeVecDR[ii] == NULL )
-				{
-					isDead[ii] = true;
-					//we just preserve old m and W although we will disregard results
-				}else{//we have both daughters
-					isDead[ii] = false;
-					for(int aa = 0; aa<dimsImage; aa++)
-					{
-						m[ii + aa * numEllipsoids] = 0.5 * (auxNodeVecDL[ii]->data->centroid[aa] + auxNodeVecDR[ii]->data->centroid[aa]);
-					}
-					for(int aa = 0; aa<sizeW; aa++)
-					{
-						W[ii + aa * numEllipsoids] = precisionWfix[aa];
-					}
-				}
-			}
-		}else{
-			double auxW[sizeW], auxM[dimsImage];
-
-			for(int ii = 0; ii < numEllipsoids; ii++)
-			{
-				if( auxNodeVecDL[ii] == NULL || auxNodeVecDR[ii] == NULL )
-				{
-					isDead[ii] = true;
-					//we just preserve old m and W although we will disregard results
-				}else{//we have both daughters
-					isDead[ii] = false;
-					//assert( supervoxel::dataSizeInBytes / (supervoxel::dataDims[0] * supervoxel::dataDims[1] * supervoxel::dataDims[2]) == 2 );//uint16 pointers					
-					//cellDivisionWithTemporalWindow::calculatePrecisionMatrixForJointDuaghters<mylib::uint16>(*(auxNodeVecDL[ii]->data), *(auxNodeVecDR[ii]->data), auxM, auxW);
-					cellDivisionWithTemporalWindow::calculatePrecisionMatrixForJointDuaghters(*(auxNodeVecDL[ii]->data), *(auxNodeVecDR[ii]->data), auxW);		//not using the image information			
-					for(int aa = 0; aa<dimsImage; aa++)
-					{
-						//m[ii + aa * numEllipsoids] = auxM[aa];
-						m[ii + aa * numEllipsoids] = 0.5 * (auxNodeVecDL[ii]->data->centroid[aa] + auxNodeVecDR[ii]->data->centroid[aa]);
-					}
-					for(int aa = 0; aa<sizeW; aa++)
-					{						
-						W[ii + aa * numEllipsoids] = auxW[aa];
-					}
-				}
-			}
-		}
-
-		//calculate features
-		err = calculateBasicEllipticalHaarFeaturesBatchAtTM( isDead, imgVec[tt], cdtwVec, tt, devCUDA, symmetry, m , W, &dimsVec);
-		if( err > 0 )
-			return err;
-		//move forwards in the lineage
-		for(int ii = 0; ii < numEllipsoids; ii++)
-		{
-			//left daughter
-			auxNodeVecDL[ii] = moveForwardInlineageEvenWithCellDivision(auxNodeVecDL[ii]);
-			//right daughter
-			auxNodeVecDR[ii] = moveForwardInlineageEvenWithCellDivision(auxNodeVecDR[ii]);			
-		}				
-	}*/
 
 	//release memory
 	delete[] m;
