@@ -77,6 +77,7 @@ int cellDivisionTemporalWindow_TGMMsupport::setClassifierModel(string filename)
 }
 
 //=====================================================
+float* cellDivisionPlaneDistance2021(float centroidMM[dimsImage], float centroidDL[dimsImage], float centroidDR[dimsImage], const float scale[dimsImage] );
 //2021 NEW: add parameter for thrCellDivisionPlaneDistance and use this function to find several division mother/sibling pairs to audition for each new track
 int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, vector<mylib::Array*>& imgVec, int devCUDA, double thrCellDivisionPlaneDistance, float* im_zero, float* im_plus_one, bool regularize_W4DOF, float scaleOrig[3] )
 
