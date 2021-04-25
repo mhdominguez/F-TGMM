@@ -1746,7 +1746,7 @@ int main( int argc, const char** argv )
 #endif
 					float *im = time_series_map.getProcessed(frame);
 					extendDeadNucleiAtTMwithHS(lht, hs, frame - 1, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
-					cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells using a simple local Hungarian algorithm with supervoxels" << endl;
+					cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells in frame " << frame - 1 << " using a simple local Hungarian algorithm with supervoxels" << endl;
 
 
 					//redo in case other fixes have incorporated
@@ -1814,13 +1814,27 @@ int main( int argc, const char** argv )
 					//2021 NEW
                     if ( configOptions.cellDivisionClassifier.Amatf2013.use_2021_code ) 
                     {
+						//set up parameters and cache images as needed
 						int frameOffset = frame - configOptions.temporalWindowRadiusForLogicalRules;
 						bool was_cached0,was_cached1;
 						STATTIME_INIT;
 	                    STATTIME(was_cached0=time_series_map.maybe_process(frameOffset,hsVec[configOptions.temporalWindowRadiusForLogicalRules]));
 	                    STATTIME(was_cached1=time_series_map.maybe_process(frameOffset+1,hsVec[configOptions.temporalWindowRadiusForLogicalRules+1]));
 						STATTIME_READ;
-						TIME(numCorrections = cdwtClassifier->classifyCellDivisionTemporalWindow(lht, frameOffset, time_series_map.imgVecUINT16, devCUDA, configOptions.thrCellDivisionPlaneDistance,time_series_map.getProcessed(frameOffset),time_series_map.getProcessed(frameOffset+1),regularize_W4DOF, scaleOrig ));
+						
+						//run division classifier
+						float *im = time_series_map.getProcessed(frameOffset);
+						float *im1 = time_series_map.getProcessed(frameOffset+1);
+						TIME(numCorrections = cdwtClassifier->classifyCellDivisionTemporalWindow(lht, frameOffset, time_series_map.imgVecUINT16, devCUDA, configOptions.thrCellDivisionPlaneDistance,im,im1,regularize_W4DOF, scaleOrig ));
+						
+						//since bad divisions at frameOffset are now broken (had been left un-broken until this point), re-run the dead cell extender code to those timepoints
+						extendDeadNucleiAtTMwithHS(lht, hs, frameOffset - 1, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
+						cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells in frame " << frameOffset - 1 << " using a simple local Hungarian algorithm with supervoxels" << endl;
+						extendDeadNucleiAtTMwithHS(lht, hs, frameOffset, numCorrections, numSplits,im1);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
+						cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells in frame " << frameOffset << " using a simple local Hungarian algorithm with supervoxels" << endl;
+						
+						
+						//clean up the mess
 						if (!was_cached0)
 							time_series_map.flush(frameOffset);
 						if (!was_cached1)
