@@ -39,6 +39,7 @@ public:
 	//returns -1 if there is an error. Otherwise returns the number of true cell divisions
 	//int classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, std::vector<mylib::Array*>& imgVec, int devCUDA, double thrCellDivisionPlaneDistance) final;
 	int classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, std::vector<mylib::Array*>& imgVec, int devCUDA, double thrCellDivisionPlaneDistance, float *im_zero, float *im_plus_one, bool regularize_W4DOF, float scaleOrig[3]) final;
+	float cellDivisionPlaneDistance2021(float centroidMM[dimsImage], float centroidDL[dimsImage], float centroidDR[dimsImage], const float scale[dimsImage], float &sqrtnorm );
 	int classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, std::vector<mylib::Array*>& imgVec, int devCUDA ) final;
 
 	//I/O functions
