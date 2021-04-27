@@ -191,11 +191,13 @@ int cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchFor
 	cdtwVec.resize( numEllipsoids );
 	for(int ii = 0; ii < numEllipsoids; ii++)
 	{
-		assert(parentNodes[ii]->getNumChildren() == 1);
-		/*if(parentNodes[ii]->getNumChildren() != 1)
+		//assert(parentNodes[ii]->getNumChildren() == 1);
+		//DEBUG
+		if(parentNodes[ii]->getNumChildren() != 1)
 		{
 			cout << "  cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters parentNodes " << ii << " has " << parentNodes[ii]->getNumChildren() << "children!" << endl;
-		}*/
+			assert(parentNodes[ii]->getNumChildren() == 1);
+		}
 		cdtwVec[ii].fHaarVec.resize(1 + 2*temporalWindowRadius);
 		auxNodeVec[ii] = parentNodes[ii];
 		cdtwVec[ii].cellDivisionPtr = parentNodes[ii];//initialize this pointer

@@ -166,8 +166,6 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 			//add the now-broken division to Santa's naughty list
 			divisionNodes.push_back(aux);
 			divisionNodes.push_back(auxD);			
-			
-			
 			//cout << "auxD: " ;
 		}
 	}
@@ -207,16 +205,22 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 		//find the closest three prospective siblings for this new track, then push parents onto running list
 		for (list<nucleus>::iterator iterN_2 = nucleiList->begin(); iterN_2 != nucleiList->end(); ++iterN_2)
 		{
-			if ( iterN_2->treeNodePtr->parent == NULL )
+			mother = iterN_2->treeNodePtr->parent;
+			
+			if ( mother == NULL || mother->getNumChildren() > 1 )
 			{
-				//cout << "  iterN_2 parent is NULL" << endl;
+				//cout << "  iterN_2 parent is NULL" << endl; //DEBUG
 				continue;					
 			}
 			
-			//if ( iterN_2->treeNodePtr->parent->getNumChildren() > 1 )
+			if ( mother->getNumChildren() != 1 )
+			{
+				cout << "  iterN_2 parent has " << mother->getNumChildren() << " children!" << endl; //DEBUG
+				continue;
+			}
 			//cout << "  classifyCellDivisionTemporalWindow iterN_2 parent has " << iterN_2->treeNodePtr->parent->getNumChildren() << " children!" << endl;
 			//calculate midplane feature, backpedaling to get the best midplane distance in case we missed the true division point by temporalWindowRadius
-			mother = iterN_2->treeNodePtr->parent;
+			
 			left_daughter = iterN_2->treeNodePtr;
 			//if ( mother->left == NULL && mother->right != NULL ) 
 			//	left_daughter = mother->right;
@@ -228,7 +232,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 			for ( int iii=cellDivisionWithTemporalWindow::getTemporalWindowRadius(); iii>0; iii-- )
 			{
 				//d_this = lineageHyperTree::cellDivisionPlaneDistance(mother->data->centroid,left_daughter->data->centroid,auxD->data->centroid);
-				//TODO: use supervoxels' PixelIdxList.size() for mother nucleus to set maximum absolute radius between the mother and attached daughter auxD and reject connection if above this limit
+				//use supervoxels' PixelIdxList.size() for mother nucleus to set maximum absolute radius between the mother and attached daughter auxD and reject connection if above this limit
 				//cout << "run cellDivisionPlaneDistance2021...";
 				d_this = cellDivisionPlaneDistance2021(mother->data->centroid,left_daughter->data->centroid,auxD->data->centroid,scaleOrig,half_daughter_distance);
 				//cout << "cellDivisionPlaneDistance2021 " << distance_return[0] << " " << distance_return[1] << endl;
@@ -259,9 +263,10 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 				sv_vol *= scaleOrig[ii];
 			
 				
-				
-			if ( d<test_threshold && 6*cbrt(sv_vol)>e ) //maintain a top three list for prospective parents to this division child
+			d /= half_daughter_distance; //remember that cellDivisionPlaneDistance2021 returns total midplane distance, not ratio, so have to re-solve for ratio to compare with thrCellDivisionPlaneDistance
+			if ( d<test_threshold && cbrt(sv_vol)>e ) //2021 thresholds now are 1. thrCellDivisionPlaneDistance and 2. cutoff for absolute distance between daughter cells
 			{
+				//maintain a top three list for prospective parents to this division child
 				if ( d<min_1 )
 				{
 					par_3 = par_2;
@@ -639,7 +644,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 	return numTrueCellDivisions;
 }
 
-//2021 NEW: this function also returns the absolute distance between each daughter
+//2021 NEW: this function returns TOTAL midplane distance, not a ratio, and also updates the absolute distance between each daughter as a float pointer passed as parameter "sqrtnorm"
 float cellDivisionTemporalWindow_TGMMsupport::cellDivisionPlaneDistance2021(float centroidMM[dimsImage], float centroidDL[dimsImage], float centroidDR[dimsImage], const float scale[dimsImage], float &sqrtnorm )
 {
 //calculate midplane feature
@@ -663,8 +668,8 @@ float cellDivisionTemporalWindow_TGMMsupport::cellDivisionPlaneDistance2021(floa
 		//return_arr[1] = sqrt(norm); //half of distance between daughters
 		//fabsd = fabs(d);
 		sqrtnorm = sqrt(norm);
-		
-		return fabs(d) / sqrtnorm;
+		return fabs(d);
+		//return fabs(d) / sqrtnorm;
 		//return return_arr;
 		//return fabs(d) / sqrt(norm);
 }
