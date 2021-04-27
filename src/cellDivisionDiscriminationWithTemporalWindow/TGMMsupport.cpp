@@ -215,7 +215,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 			
 			if ( mother->getNumChildren() != 1 )
 			{
-				cout << "  iterN_2 parent has " << mother->getNumChildren() << " children!" << endl; //DEBUG
+				cout << "   DEBUG: iterN_2 parent has " << mother->getNumChildren() << " children!" << endl; //DEBUG
 				continue;
 			}
 			//cout << "  classifyCellDivisionTemporalWindow iterN_2 parent has " << iterN_2->treeNodePtr->parent->getNumChildren() << " children!" << endl;

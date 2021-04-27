@@ -503,7 +503,7 @@ int extendDeadNucleiAtTMwithHS(lineageHyperTree &lht, hierarchicalSegmentation* 
 	if( TM < 0 || TM >= (int) ( lht.getMaxTM()) )
 		return 0;
 
-	TreeNode<ChildrenTypeLineage>* aux;	
+	//TreeNode<ChildrenTypeLineage>* aux;	
 	for(list<nucleus>::iterator iterN = lht.nucleiList[TM].begin(); iterN != lht.nucleiList[TM].end(); ++iterN)
 	{
 		if( iterN->treeNodePtr->getNumChildren() == 0)
@@ -523,7 +523,7 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 		return 0;//rootDead is not a dead split so we cannnot do anything
 
 	//try to find the most obvious continuation
-
+	
 	//1.-Generate a super-supervoxel by merging all the supervoxel belonging to the nucleus
 	vector<ChildrenTypeNucleus>::iterator iterS = rootDead->data->treeNode.getChildren().begin();
 	supervoxel supervoxelFromNucleus( *(*iterS) );
@@ -573,9 +573,9 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 		return 1;//we have added one nucleus
 	}else{
 		 iterNucOwner = intersectionS->treeNode.getParent();
-		 if( iterNucOwner->treeNodePtr->parent != NULL )//we were one time step ahead
+		 if( iterNucOwner->treeNodePtr->parent != NULL )
 		 {
-			 iterNucOwner = iterNucOwner->treeNodePtr->parent->data;
+			 iterNucOwner = iterNucOwner->treeNodePtr->parent->data; //we were one time step ahead, so now look from the perspective of the parent of the nucelus who owns the supervoxels
 			 
 			 if( iterNucOwner->treeNodePtr->getNumChildren() > 1)
 			 {
@@ -596,7 +596,32 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 			 }			 
 
 		 }else{
-			 return 0;//there is no parent
+			 //return 0;//there is no parent
+			 //2021 new: if there is no parent, attach dead cell to this one to connect the lineages
+			//update lineage-nucleus hypergraph
+			
+			//we need to make sure all the the elements in the binary tree point to the correct lineage
+			TreeNode<ChildrenTypeLineage> *aux;
+			queue< TreeNode<ChildrenTypeLineage>* > q;
+			q.push( iterNucOwner->treeNodePtr );
+			//TreeNode<ChildrenTypeLineage>* aux;
+			while( !q.empty() )
+			{
+				aux = q.front();
+				q.pop();
+				if( aux->left != NULL) q.push(aux->left);
+				if( aux->right != NULL) q.push(aux->right);
+				aux->data->treeNode.setParent( rootDead->data->treeNode.getParent() );
+			}
+
+			iterNucOwner->treeNodePtr->parent = rootDead;
+			
+			//now remove the daughter tree since it has been attached to rootDead
+			iterNucOwner->treeNode.getParent()->bt.SetMainRootToNULL();
+			lht.lineagesList.erase( iterNucOwner->treeNode.getParent() );
+			
+			cout<<"   DEBUG: lineageHyperTree::extendDeadNuclei: extended a dead cell at TM " << rootDead->data->TM << " by attaching to a new birth at TM " << iterNucOwner->TM <<endl;
+			return 1;
 		 }
 	}
 
