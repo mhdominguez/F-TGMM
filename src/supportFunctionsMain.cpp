@@ -601,10 +601,13 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 			//update lineage-nucleus hypergraph
 			
 			//we need to make sure all the the elements in the binary tree point to the correct lineage
-			TreeNode<ChildrenTypeLineage> *aux;
+			TreeNode<ChildrenTypeLineage> *aux = iterNucOwner->treeNodePtr;
 			queue< TreeNode<ChildrenTypeLineage>* > q;
-			q.push( iterNucOwner->treeNodePtr );
-			//TreeNode<ChildrenTypeLineage>* aux;
+			//q.push( iterNucOwner->treeNodePtr );
+			
+			if( aux->left != NULL) q.push(aux->left);
+			if( aux->right != NULL) q.push(aux->right);
+			
 			while( !q.empty() )
 			{
 				aux = q.front();
@@ -614,11 +617,13 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 				aux->data->treeNode.setParent( rootDead->data->treeNode.getParent() );
 			}
 
-			iterNucOwner->treeNodePtr->parent = rootDead;
-			
 			//now remove the daughter tree since it has been attached to rootDead
 			iterNucOwner->treeNode.getParent()->bt.SetMainRootToNULL();
 			lht.lineagesList.erase( iterNucOwner->treeNode.getParent() );
+			
+			//last step is set correct binary tree and parent nucleus for first linked (daugther) nucleus
+			iterNucOwner->treeNode.setParent( rootDead->data->treeNode.getParent() );
+			iterNucOwner->treeNodePtr->parent = rootDead;
 			
 			cout<<"   DEBUG: lineageHyperTree::extendDeadNuclei: extended a dead cell at TM " << rootDead->data->TM << " by attaching to a new birth at TM " << iterNucOwner->TM <<endl;
 			return 1;

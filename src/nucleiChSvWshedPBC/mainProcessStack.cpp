@@ -123,6 +123,8 @@ int main( int argc, const char** argv )
 	//parse input parameters
 	string basename;//filename without extension so we can save our binary hierarchical segmentation
 	int radiusMedianFilter = 0;//if radius = 1->3x3 medianFilter
+	int sigmaGaussianBlur = 0;
+	int weightBlurredImageSubtract = 0;
 	int minTau = 0;
 	int backgroundThr = 0;
 	int conn3D = 0;
@@ -154,6 +156,9 @@ int main( int argc, const char** argv )
 		minTau = configOptions.minTau;
 		backgroundThr = configOptions.backgroundThreshold;
 		conn3D = configOptions.conn3D;
+		
+		sigmaGaussianBlur = configOptions.sigmaGaussianBlur;
+		weightBlurredImageSubtract = configOptions.weightBlurredImageSubtract;
 
 	}else if( argc == 6)
 	{
@@ -344,6 +349,15 @@ int main( int argc, const char** argv )
 
 #endif
     writeArrayToKLB("median.klb",img);
+	
+	if ( sigmaGaussianBlur > 5 && weightBlurredImageSubtract > 0 ) {
+		//perform Gaussian Blur then subtract from median filtered image
+		mylib::Array* img_blurred = Convert_Image(img, img->kind, img->type, img->scale); //copy the image array
+		
+		
+		//mylib::Array* img_blurred = Make_Array(img->kind, img->type, img->ndims, img->dims);
+		//img_blurred->data = img->data
+	}
 
 	//build hierarchical tree
 	//cout<<"DEBUGGING: building hierarchical tree"<<endl;

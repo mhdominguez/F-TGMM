@@ -137,8 +137,13 @@ int configOptionsTrackingGaussianMixture::parseConfigFileTrackingGaussianMixture
 		}else if(strcmp("radiusMedianFilter",token[0])==0)
 		{
 			radiusMedianFilter = atoi(token[1]);
-		}
-		else if (strcmp("useMedianFilterForTracking", token[0]) == 0)
+		}else if(strcmp("sigmaGaussianBlur",token[0])==0)
+		{
+			sigmaGaussianBlur = atof(token[1]);
+		}else if(strcmp("weightBlurredImageSubtract",token[0])==0)
+		{
+			weightBlurredImageSubtract = atof(token[1]);			
+		}else if (strcmp("useMedianFilterForTracking", token[0]) == 0)
 		{
 			useMedianFilterForTracking = atoi(token[1]);
 		}else if(strcmp("minTau",token[0])==0)

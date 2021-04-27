@@ -71,6 +71,8 @@ struct configOptionsTrackingGaussianMixture
 
 	//watershed +PBC segmentation
 	int		radiusMedianFilter{};
+	float	sigmaGaussianBlur{};
+	float	weightBlurredImageSubtract{};
 	int useMedianFilterForTracking{};
 	float	minTau{};
 	float	backgroundThreshold{};
@@ -188,6 +190,8 @@ struct configOptionsTrackingGaussianMixture
 
 		//elements for watershed segmentation
 		radiusMedianFilter = 2;
+		sigmaGaussianBlur = 20.0f;
+		weightBlurredImageSubtract = 0.5f;
 		useMedianFilterForTracking = 0;
 		minTau = 2;
 		backgroundThreshold = -1e32f;
