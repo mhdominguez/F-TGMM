@@ -40,6 +40,7 @@ namespace mylib
 {
 	#include "../temporalLogicalRules/mylib/array.h"
 	#include "../temporalLogicalRules/mylib/image.h"
+	#include "../temporalLogicalRules/mylib/filters.h"
 }
 
 
@@ -47,6 +48,10 @@ using namespace std;
 
 void generateSegmentationMaskFromHS(string hsFilename, int tau, size_t minSvSize);
 void parseImageFilePattern(string& imgRawPath, int frame);
+int getKernelRadiusForSigma(double sigma);
+
+template<class imgType>
+void subtractImages(const int nDim, imgType* im1,const int* imDim,imgType* im2);
 
 static void writeArrayToKLB(const char* filename,mylib::Array *a);
 
@@ -105,7 +110,7 @@ int main( int argc, const char** argv )
 	int devCUDA = 0;
 #endif
 	cout << "ProcessStack Version " << GIT_TAG << " " << GIT_HASH << endl;
-
+	time_t start, end;
 	if( argc == 4)//we have a .bin file from hierarchical segmentation and we want to output a segmentation for a specific tau
 	{
 		//Call function with ProcessStack <hsFilename.bin> <tau> <minSupervoxelSize>
@@ -123,11 +128,12 @@ int main( int argc, const char** argv )
 	//parse input parameters
 	string basename;//filename without extension so we can save our binary hierarchical segmentation
 	int radiusMedianFilter = 0;//if radius = 1->3x3 medianFilter
-	int sigmaGaussianBlur = 0;
-	int weightBlurredImageSubtract = 0;
+	double sigmaGaussianBlur = 0;
+	double weightBlurredImageSubtract = 0;
 	int minTau = 0;
 	int backgroundThr = 0;
 	int conn3D = 0;
+	float anisotropyZ = 1;//
 
 	if( argc == 3 ) //we call program wiht <configFile> <timePoint>
 	{
@@ -156,9 +162,10 @@ int main( int argc, const char** argv )
 		minTau = configOptions.minTau;
 		backgroundThr = configOptions.backgroundThreshold;
 		conn3D = configOptions.conn3D;
+		anisotropyZ = configOptions.anisotropyZ;
 		
-		sigmaGaussianBlur = configOptions.sigmaGaussianBlur;
-		weightBlurredImageSubtract = configOptions.weightBlurredImageSubtract;
+		sigmaGaussianBlur = (double)configOptions.sigmaGaussianBlur;
+		weightBlurredImageSubtract = (double)configOptions.weightBlurredImageSubtract;
 
 	}else if( argc == 6)
 	{
@@ -342,23 +349,55 @@ int main( int argc, const char** argv )
 
 
 	//calculate median filter
+	time(&start);
 #ifndef DO_NOT_USE_CUDA
 	medianFilterCUDASliceBySlice((imgVoxelType*) (img->data), img->dims, radiusMedianFilter,devCUDA);
 #else
 	medianFilter2DSliceBySlice((imgVoxelType*)(img->data), img->dims, radiusMedianFilter);
 
 #endif
-    writeArrayToKLB("median.klb",img);
-	
+	time(&end);
+    //writeArrayToKLB("median.klb",img);
+	cout << "Median filtering complete in " << difftime(end,start) << " secs " << endl; // mylib::SUB_OP << endl;
+	//compute Gaussian blur for more sophisticated background subtraction
 	if ( sigmaGaussianBlur > 5 && weightBlurredImageSubtract > 0 ) {
 		//perform Gaussian Blur then subtract from median filtered image
-		mylib::Array* img_blurred = Convert_Image(img, img->kind, img->type, img->scale); //copy the image array
+		//mylib::Array* img_blurred = Convert_Image(img, img->kind, img->type, img->scale); //copy the image array
+		mylib::Array* img_blurred = mylib::Copy_Array(img); //copy the image array since we will convolve in place
+		//cout << "line A" << endl;
+		//make XY kernel and convolve
+		mylib::Double_Vector *xy_kernel = mylib::Gaussian_Filter(sigmaGaussianBlur, getKernelRadiusForSigma(sigmaGaussianBlur));//cout << "line B" << endl;
+		//mylib::Scale_Array( xy_kernel, weightBlurredImageSubtract, 0 );//cout << "line C" << endl;
+		mylib::Filter_Dimension(img_blurred,xy_kernel,0);//cout << "line D" << endl;
+		if ( img->ndims >1 )
+			mylib::Filter_Dimension(img_blurred,xy_kernel,1);
+		//cout << "line E" << endl;
+		if ( img->ndims == 3 ) {
+			//change to making Z kernel and convolve
+			sigmaGaussianBlur /= anisotropyZ; 
+			mylib::Double_Vector *z_kernel = mylib::Gaussian_Filter(sigmaGaussianBlur, getKernelRadiusForSigma(sigmaGaussianBlur));
+			//mylib::Scale_Array( z_kernel, weightBlurredImageSubtract, 0 );
+			mylib::Filter_Dimension(img_blurred,z_kernel,2);
+		}
+		//cout << "line F" << endl;
+		//writeArrayToKLB("gaussian_blurred.klb",img_blurred); // DEBUG
+		mylib::Value v;
+		v.fval = weightBlurredImageSubtract;
 		
+		mylib::Scale_Array( img_blurred, weightBlurredImageSubtract, 0 );
+		//writeArrayToKLB("gaussian_blurred_factor.klb",img_blurred); // DEBUG
+		//mylib::Array_Op_Array(img,mylib::SUB_OP,img_blurred); //subtract in place img_blurred from img to produce the background-subtracted final image for segmentation
+		//mylib::Kill_Array(img_blurred);
+		//subtract_images((imgVoxelType*)(img->data), img->dims)
+		//perform subtraction
+		subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data));
 		
-		//mylib::Array* img_blurred = Make_Array(img->kind, img->type, img->ndims, img->dims);
-		//img_blurred->data = img->data
+		writeArrayToKLB("gaussian_blur_subtracted.klb",img); //DEBUG
+		mylib::Kill_Array(img_blurred);
+		//img = img_blurred;
 	}
-
+	time(&start);
+	cout << "Gaussian blur background subtraction complete in " << difftime(start,end) << " secs" << endl; 
 	//build hierarchical tree
 	//cout<<"DEBUGGING: building hierarchical tree"<<endl;
 	int64 imgDims[dimsImage];
@@ -541,3 +580,38 @@ void parseImageFilePattern(string& imgRawPath, int frame)
 	}
 
 }
+
+//=======================================================================
+int getKernelRadiusForSigma(double sigma) {
+  int size = int(ceilf(sigma * 3));
+  if (size < 3) {
+    size = 3;
+  }
+  if (size >=  255) { //255 is max Kernel radius
+    size = 255;
+  }
+  return size;
+}
+
+
+//===============================================
+template<class imgType>
+void subtractImages(const int nDim, imgType* im1, const int* imDim, imgType* im2)
+{
+	uint64_t sliceSize = imDim[0];
+	for (int ii = 1; ii < nDim; ii++)
+		sliceSize *= imDim[ii];
+	
+	for ( uint64_t ii = 0; ii<sliceSize; ii++)
+		if( im2[ii] >= im1[ii] )
+			im1[ii] = 0;
+		else
+			im1[ii] -= im2[ii];
+}
+
+
+
+//declare all the possible types so template compiles properly
+template void subtractImages<unsigned char>(const int nDim, unsigned char* im1, const  int* imDim, unsigned char* im2);
+template void subtractImages<unsigned short int>(const int nDim, unsigned short int* im1, const  int* imDim, unsigned short int* im2);
+template void subtractImages<float>(const int nDim, float* im1, const int* imDim, float* im2);

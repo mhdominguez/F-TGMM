@@ -1831,9 +1831,23 @@ int main( int argc, const char** argv )
                     	TIME(numSplits = cdwtClassifier->getNumCellDivisions());
                     	cout << "Corrected " << numCorrections << " out of " << numSplits << " initially proposed cell divisions in frame " << frameOffset << " because cell division classifier with temporal window with thr =" << cdwtClassifier->getThrCDWT() << endl;
 						
+						if (lengthTMthr > 0)
+						{
+							//redo in case other fixes have incorporated
+							lht.deleteShortLivedDaughtersAll(lengthTMthr, frame - lengthTMthr, numCorrections, numSplits);//delete short living daughter
+							cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death at frame " << frame - lengthTMthr << " time points after cell division" << endl;
+						}
+					
 						//since bad divisions at frameOffset are now broken (had been left un-broken until this point), re-run the dead cell extender to those timepoints
 						extendDeadNucleiAtTMwithHS(lht, hs, frameOffset, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
 						cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells in frame " << frameOffset << " using a simple local Hungarian algorithm with supervoxels" << endl;
+						/*DEBUG
+						if (lengthTMthr > 0)
+						{
+							//redo in case other fixes have incorporated
+							lht.deleteShortLivedDaughtersAll(lengthTMthr, frame - lengthTMthr, numCorrections, numSplits);//delete short living daughter
+							cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death at frame " << frame - lengthTMthr << " time points after cell division" << endl;
+						}*/
 						
 						//clean up the mess
 						if (!was_cached0)
