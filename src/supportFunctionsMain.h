@@ -48,7 +48,7 @@ void transposeStackUINT16(mylib::Array *img);
 \brief same as int lineageHyperTree::extendDeadNucleiAtTM(int TM, int& numExtensions, int &numDeaths) but using Hierarchical Segmentaion information to entend death track with Hungarian algorithm (so supervoxels can be split)
 */
 int extendDeadNucleiAtTMwithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsForward, int TM, int& numExtensions, int &numDeaths,float* imgPtr);
-int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsForward, TreeNode<ChildrenTypeLineage>* rootDead,float *imgPtr);
+int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsForward, TreeNode<ChildrenTypeLineage>* rootDead,float *imgPtr,bool &dont_repeat);
 
 /*
 \brief 

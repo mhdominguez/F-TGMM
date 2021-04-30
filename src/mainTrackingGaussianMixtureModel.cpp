@@ -398,6 +398,45 @@ static string basename() {
     return pathS;
 }
 
+static void DebugFindZeroTreeNodePtrAddr ( int frame, int frameOffset, lineageHyperTree& lht ) {
+	cout << "=============DEBUGGING: looking for abnormal TreeNodePtr addresses for frames " << frame << " to " << frameOffset << " for rootcause SegFault tracing=====================" << endl;
+	
+	TreeNode<ChildrenTypeLineage>* aux;	
+	bool printme;
+	
+	for( int i=frame; i<=frameOffset; i++ ) 
+	{
+		for(list<nucleus>::iterator iterN = lht.nucleiList[i].begin(); iterN != lht.nucleiList[i].end(); ++iterN)
+		{
+			printme = false;
+			aux = iterN->treeNodePtr;
+			
+			if( (void *)(aux) == 0  || (void *)(aux) != (void *)(aux->data->treeNodePtr))
+				printme = true;
+			
+			if (aux->parent != NULL && ((void *)(aux->parent) == 0 || (void *)(aux->parent->data->treeNodePtr) != (void *)(aux->parent) ) )
+				printme = true;
+			
+			if (aux->left != NULL && ((void *)(aux->left) == 0 || (void *)(aux->left->data->treeNodePtr) != (void *)(aux->left) ) )
+				printme = true;
+			
+			if (aux->right != NULL && ((void *)(aux->right) == 0 || (void *)(aux->right->data->treeNodePtr) != (void *)(aux->right) ) )
+				printme = true;
+			
+			if ( printme )
+			{
+				cout << "  DEBUG found abnormal treeNodePtr for " << (void *)(aux) << "/" << (void *)(aux->data->treeNodePtr) << " at frame " << i << "/" << aux->data->TM << "..." << endl;
+				if (aux->parent != NULL)
+					cout << "    parent " << (void *)(aux->parent) << "/" << (void *)(aux->parent->data->treeNodePtr) << " at frame " << aux->parent->data->TM << "." << endl;
+				if (aux->left != NULL)
+					cout << "    left " << (void *)(aux->left) << "/" << (void *)(aux->left->data->treeNodePtr) << " at frame " << aux->left->data->TM << "." << endl;
+				if (aux->right != NULL)
+					cout << "    right " << (void *)(aux->right) << "/" << (void *)(aux->right->data->treeNodePtr) << " at frame " << aux->right->data->TM << "." << endl;				
+			}
+		}
+	}
+}
+
 static void DebugSvRatioHoles(string debugPath, string itoa, hierarchicalSegmentation* hs) {
     cout << "=============DEBUGGING: writing out info on super-voxels holes ratio feature to setup a good threshold=====================" << endl;
     ofstream fsvr(debugPath + "debugSvHoleRatio_" + itoa + ".txt");
@@ -1731,6 +1770,8 @@ int main( int argc, const char** argv )
             //parameters for logical temporal rules corrections (TODO: I should add them to some advance panel options later)
 			if (frame >= iniFrame + 2 * configOptions.temporalWindowRadiusForLogicalRules) // frame is out of the initial window period
 			{
+				//DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame-1, lht );
+				
 				int numCorrections, numSplits;
 
 				if (lengthTMthr > 0) {
@@ -1814,14 +1855,15 @@ int main( int argc, const char** argv )
 					//2021 NEW
                     if ( configOptions.cellDivisionClassifier.Amatf2013.use_2021_code ) 
                     {
+						
+						
 						//set up parameters and cache images as needed
 						int frameOffset = frame - configOptions.temporalWindowRadiusForLogicalRules;
 						bool was_cached0,was_cached1;
-						STATTIME_INIT;
-	                    STATTIME(was_cached0=time_series_map.maybe_process(frameOffset,hsVec[configOptions.temporalWindowRadiusForLogicalRules]));
-	                    STATTIME(was_cached1=time_series_map.maybe_process(frameOffset+1,hsVec[configOptions.temporalWindowRadiusForLogicalRules+1]));
-						STATTIME_READ;
+	                    was_cached0=time_series_map.maybe_process(frameOffset,hsVec[configOptions.temporalWindowRadiusForLogicalRules]);
+	                    was_cached1=time_series_map.maybe_process(frameOffset+1,hsVec[configOptions.temporalWindowRadiusForLogicalRules+1]);
 						
+						//DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
 						//run division classifier
 						float *im = time_series_map.getProcessed(frameOffset+1);
 						TIME(numCorrections = cdwtClassifier->classifyCellDivisionTemporalWindow(lht, frameOffset, time_series_map.imgVecUINT16, devCUDA, configOptions.thrCellDivisionPlaneDistance,time_series_map.getProcessed(frameOffset),im,regularize_W4DOF, scaleOrig ));
@@ -1831,23 +1873,29 @@ int main( int argc, const char** argv )
                     	TIME(numSplits = cdwtClassifier->getNumCellDivisions());
                     	cout << "Corrected " << numCorrections << " out of " << numSplits << " initially proposed cell divisions in frame " << frameOffset << " because cell division classifier with temporal window with thr =" << cdwtClassifier->getThrCDWT() << endl;
 						
+						//DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						
+						//if (lengthTMthr > 0)
+						//{
+						//	//redo in case other fixes have incorporated
+						//	lht.deleteShortLivedDaughtersAll(lengthTMthr, frame - lengthTMthr, numCorrections, numSplits);//delete short living daughter
+						//	cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death at frame " << frame - lengthTMthr << " time points after cell division" << endl;
+						//}
+					
+						DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						
+						//since bad divisions at frameOffset are now broken (had been left un-broken until this point), re-run the dead cell extender to those timepoints
+						extendDeadNucleiAtTMwithHS(lht, hs, frameOffset, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
+						cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells in frame " << frameOffset << " using a simple local Hungarian algorithm with supervoxels" << endl;
+						
+						DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						
 						if (lengthTMthr > 0)
 						{
 							//redo in case other fixes have incorporated
 							lht.deleteShortLivedDaughtersAll(lengthTMthr, frame - lengthTMthr, numCorrections, numSplits);//delete short living daughter
 							cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death at frame " << frame - lengthTMthr << " time points after cell division" << endl;
 						}
-					
-						//since bad divisions at frameOffset are now broken (had been left un-broken until this point), re-run the dead cell extender to those timepoints
-						extendDeadNucleiAtTMwithHS(lht, hs, frameOffset, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
-						cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells in frame " << frameOffset << " using a simple local Hungarian algorithm with supervoxels" << endl;
-						/*DEBUG
-						if (lengthTMthr > 0)
-						{
-							//redo in case other fixes have incorporated
-							lht.deleteShortLivedDaughtersAll(lengthTMthr, frame - lengthTMthr, numCorrections, numSplits);//delete short living daughter
-							cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death at frame " << frame - lengthTMthr << " time points after cell division" << endl;
-						}*/
 						
 						//clean up the mess
 						if (!was_cached0)
@@ -1952,6 +2000,9 @@ int main( int argc, const char** argv )
                 TIME(delete hsVec.front());
                 TIME(hsVec.erase(hsVec.begin()));
             }
+            
+            DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame, lht );
+			
             cout << "Applying all the temporal logical rules took " << toc(&ttTemporalLogicalRules) << " secs" << endl;
 			cout<<"******************************************************************************"<<endl;
             //--------------end of temporal logical rules--------------------------------------------------
