@@ -399,6 +399,9 @@ static string basename() {
 }
 
 static void DebugFindZeroTreeNodePtrAddr ( int frame, int frameOffset, lineageHyperTree& lht ) {
+	if ( frame < 0 )
+		frame = 0;
+	
 	cout << "=============DEBUGGING: looking for abnormal TreeNodePtr addresses for frames " << frame << " to " << frameOffset << " for rootcause SegFault tracing=====================" << endl;
 	
 	TreeNode<ChildrenTypeLineage>* aux;	
