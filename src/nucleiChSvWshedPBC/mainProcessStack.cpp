@@ -583,7 +583,7 @@ void parseImageFilePattern(string& imgRawPath, int frame)
 
 //=======================================================================
 int getKernelRadiusForSigma(double sigma) {
-  int size = int(ceilf(sigma * 3));
+  int size = int(ceilf(sigma * 3)); //3 sigmas plus/minus should be decent
   if (size < 3) {
     size = 3;
   }
