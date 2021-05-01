@@ -168,7 +168,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 			divisionNodes.push_back(auxD);			
 			//cout << "auxD: " ;
 			
-			cout<<"   DEBUG: TGMMsupport at frame " << frame << ", just broke " << (void *)(auxD) << " from mother " << (void *)(aux) << endl;
+			//cout<<"   DEBUG: TGMMsupport at frame " << frame << ", just broke " << (void *)(auxD) << " from mother " << (void *)(aux) << endl;
 		}
 	}
 	
@@ -217,7 +217,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 			
 			if ( mother->getNumChildren() != 1 )
 			{
-				cout << "   DEBUG: iterN_2 parent has " << mother->getNumChildren() << " children!" << endl; //DEBUG
+				//cout << "   DEBUG: iterN_2 parent has " << mother->getNumChildren() << " children!" << endl; //DEBUG
 				continue;
 			}
 			//cout << "  classifyCellDivisionTemporalWindow iterN_2 parent has " << iterN_2->treeNodePtr->parent->getNumChildren() << " children!" << endl;
@@ -414,9 +414,9 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 	if (imgVec.empty() == true)
 		imgVec.resize(2 * cellDivisionWithTemporalWindow::getTemporalWindowRadius() + 1, NULL);//we initialize to null so the code should get the information from superovxels
 	//printf("imgVec.size() is %lu, getTemporalWindowRadius is %d \n", imgVec.size(), cellDivisionWithTemporalWindow::getTemporalWindowRadius() );
-	cout << "   imgVec.size() is " << imgVec.size() << ", getTemporalWindowRadius is " << cellDivisionWithTemporalWindow::getTemporalWindowRadius() << endl;
-	cout << "   daughterNodes.size() is " << daughterNodes.size() << ", parentNodes.size() is " << daughterNodes.size() << endl;
-	cout << "   nucleiList->size() is " << nucleiList->size() << ", nucleiList_minus_1->size() is " << nucleiList_minus_1->size() << endl;	
+	//cout << "   imgVec.size() is " << imgVec.size() << ", getTemporalWindowRadius is " << cellDivisionWithTemporalWindow::getTemporalWindowRadius() << endl;
+	//cout << "   daughterNodes.size() is " << daughterNodes.size() << ", parentNodes.size() is " << daughterNodes.size() << endl;
+	//cout << "   nucleiList->size() is " << nucleiList->size() << ", nucleiList_minus_1->size() is " << nucleiList_minus_1->size() << endl;	
 	cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters(daughterNodes, parentNodes, imgVec, cdwtVec, devCUDA, 0);
 
 
@@ -533,15 +533,6 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 		//cout << "  About to test iter_this_max and Fx_max: " << iter_this_max << " " << Fx_max << "..." << endl;
 		if( iter_this_max >= 0 && Fx_max > thrCDWT )//true cell division, so we have to create new links
 		{
-			//lht.cutLinkageBetweenMotherAndFurthestDaughter(iterF->cellDivisionPtr);
-			/*
-			//list< lineage >::iterator iterL2 = iterF->cellDivisionDaughterPtr->data->treeNode.getParent();
-			list< lineage >::iterator iterL1 = iterF->cellDivisionPtr->data->treeNode.getParent();
-			cout<<"Attach Lineages at Division..."<<endl;
-			cout<<" Lineage iterL1..."<<endl;
-			//lineageHyperTree::debugPrintLineage(iterL1);
-			iterL1->debugPrintLineage();
-			*/
 			//we need to make sure all the the elements in the binary tree point to the correct lineage
 			queue< TreeNode<ChildrenTypeLineage>* > q;
 			q.push( iterF->cellDivisionDaughterPtr );
@@ -562,10 +553,6 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 				//lht.mergeBranches( iterF->cellDivisionPtr->rig/ht, iterF->cellDivisionDaughterPtr );
 				iterF->cellDivisionPtr->left = iterF->cellDivisionDaughterPtr;			
 			
-			//iterF->cellDivisionPtr->data->treeNode.getParent()->bt.SetCurrent( iterF->cellDivisionPtr );
-			//iterF->cellDivisionDaughterPtr = iterF->cellDivisionPtr->data->treeNode.getParent()->bt.insert(iterF->cellDivisionDaughterPtr->data );			
-			//assert(iterF->cellDivisionDaughterPtr != NULL);			
-
 			//DEBUG: print lineages to confirm attached
 			/*
 			cout<<"Attach Lineages at Division..."<<endl;
@@ -576,16 +563,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 			iterL2->debugPrintLineage();
 			//lineageHyperTree::debugPrintLineage(iterL2);
 			*/
-
-			//iterL2->bt.SetMainRootToNULL();//we have already deallocated memory, so if we do not set it to null the destructor tries ot do it again
-			//lht.lineagesList.erase( iterL2 );
-			
-			/*cout<<" Lineage iterL1 after..."<<endl;
-			iterL1->debugPrintLineage();
-			cout<<" Lineage iterL2 after..."<<endl;
-			iterL2->debugPrintLineage();
-			*/
-			cout<<"   DEBUG: TGMMsupport at frame " << frame << ": division parent " << (void *)(iterF->cellDivisionPtr) << ", new attached child " << (void *)(iterF->cellDivisionDaughterPtr) << " with " << iterF->cellDivisionPtr->getNumChildren() << " total siblings." << endl;
+			//cout<<"   DEBUG: TGMMsupport at frame " << frame << ": division parent " << (void *)(iterF->cellDivisionPtr) << ", new attached child " << (void *)(iterF->cellDivisionDaughterPtr) << " with " << iterF->cellDivisionPtr->getNumChildren() << " total siblings." << endl;
 			
 			numTrueCellDivisions++;
 		}else{//false cell division -> daughter starts a new lineage

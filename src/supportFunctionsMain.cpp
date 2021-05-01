@@ -578,31 +578,31 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 	}else{
 		
 		iterNucOwner = intersectionS->treeNode.getParent();
-		cout << "    R3: " << (void *)(iterNucOwner->treeNodePtr) << "/" << (void *)(iterNucOwner->treeNodePtr->data->treeNodePtr) << endl;
+		//cout << "    R3: " << (void *)(iterNucOwner->treeNodePtr) << "/" << (void *)(iterNucOwner->treeNodePtr->data->treeNodePtr) << endl;
 		 if( iterNucOwner->treeNodePtr->parent != NULL )
 		 {
 			 iterNucOwner = iterNucOwner->treeNodePtr->parent->data; //we were one time step ahead, so now look from the perspective of the parent of the nucelus who owns the supervoxels
-			 cout << "    R4: " << (void *)(iterNucOwner->treeNodePtr) << endl;
-			 if ((void *)(iterNucOwner->treeNodePtr) == 0 )
-				 cout << "   about to segfault!!" << endl;
+			 //cout << "    R4: " << (void *)(iterNucOwner->treeNodePtr) << endl;
+			 //if ((void *)(iterNucOwner->treeNodePtr) == 0 )
+			//	 cout << "   about to segfault!!" << endl;
 			 if( iterNucOwner->treeNodePtr->getNumChildren() > 1)
 			 {
-				 cout << "    R5a!" << endl;
+				 //cout << "    R5a!" << endl;
 				 intIsCellDivision = 0x0011;
 				 iterNucOwnerDaughterR = iterNucOwner->treeNodePtr->right->data;
-				 cout << "    R5aa!" << endl;
+				 //cout << "    R5aa!" << endl;
 				 iterNucOwnerDaughterL = iterNucOwner->treeNodePtr->left->data;
-				 cout << "    R5ab!" << endl;
+				 //cout << "    R5ab!" << endl;
 			 }else{
-				 cout << "    R5b!" << endl;
+				 //cout << "    R5b!" << endl;
 				 if ( iterNucOwner->treeNodePtr->left !=NULL )
 				 {
-					 cout << "    R5ba!" << endl;
+					 //cout << "    R5ba!" << endl;
 					 intIsCellDivision = 0x0001;
 					 iterNucOwnerDaughterL = iterNucOwner->treeNodePtr->left->data;
 					 iterNucOwnerDaughterR = iterNucOwnerDaughterL;
 				 }else{
-					 cout << "    R5bb!" << endl;
+					 //cout << "    R5bb!" << endl;
 					 intIsCellDivision = 0x0010;
 					 iterNucOwnerDaughterR = iterNucOwner->treeNodePtr->right->data;
 					 iterNucOwnerDaughterL = iterNucOwnerDaughterR;
@@ -641,7 +641,7 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 			//rootDead->data->treeNode.getParent()->bt.reset();
 			iterNucOwner->treeNodePtr->parent = rootDead;
 			rootDead->left = iterNucOwner->treeNodePtr;
-			if(iterNucOwner->treeNodePtr == NULL)
+			/*if(iterNucOwner->treeNodePtr == NULL)
 				cout << "   PROBLEM: extendDeadNuclei, a new birth used to extend a dead cell has NULL treeNodePtr!" << endl;
 			if(iterNucOwner->treeNodePtr->parent == NULL)
 				cout << "   PROBLEM: extendDeadNuclei, a new birth used to extend a dead cell has NULL parent!" << endl;
@@ -649,6 +649,7 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 				cout << "   PROBLEM: extendDeadNuclei, rootDead treeNodePtr incorrect!" << endl;
 			
 			cout<<"   DEBUG: lineageHyperTree::extendDeadNuclei: extended a dead cell at TM " << (void *)(rootDead) << " by attaching to a new birth at TM " << (void *)(iterNucOwner->treeNodePtr) << " with " << iterNucOwner->treeNodePtr->getNumChildren() << " children." << endl;
+			*/
 			return 1;
 		 }
 	}
@@ -658,7 +659,7 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 		cout<<"ERROR: lineageHyperTree::extendDeadNuclei: TM does not agree between two candidate nucleus"<<endl;
 		exit(5);
 	}
-	cout << "   S." << endl;
+	//cout << "   S." << endl;
 	//4.-run a small Hungarian algorithm in order to decide what is the best matching to solve this issue.
 	//We setup a list of cancidates in time point t
 	list< supervoxel > svListT0;	
@@ -782,9 +783,9 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 				extendedLineages++;
 				//iterNucNew->confidence = 4;//to analyze extended elements
 				
-				cout << "    T1: " << (void *)(iterNucNew->treeNodePtr) << " with parent " << (void *)(iterNucNew->treeNodePtr->parent) << "/" << (void *)(iterNucNew->treeNodePtr->parent->data->treeNodePtr) << endl;
+				//cout << "    T1: " << (void *)(iterNucNew->treeNodePtr) << " with parent " << (void *)(iterNucNew->treeNodePtr->parent) << "/" << (void *)(iterNucNew->treeNodePtr->parent->data->treeNodePtr) << endl;
 			}
-			cout << "    T2" << endl;
+			//cout << "    T2" << endl;
 		}
 		else if( ( assignmentId[count]->treeNode.getParent() == iterNucOwnerDaughterL ) || ( assignmentId[count]->treeNode.getParent() == iterNucOwnerDaughterR ) )//to confirm it is not null assignment && we are "stealing" a supervoxel from iterNucOwner and not from anothe nuclei
 		{
@@ -803,7 +804,7 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 				extendedLineages++;
 				//iterNucNew->confidence = 4;//to analyze extended elements
 				
-				cout << "    T3: " << (void *)(iterNucNew->treeNodePtr) << " with parent " << (void *)(iterNucNew->treeNodePtr->parent) << "/" << (void *)(iterNucNew->treeNodePtr->parent->data->treeNodePtr) << endl;
+				//cout << "    T3: " << (void *)(iterNucNew->treeNodePtr) << " with parent " << (void *)(iterNucNew->treeNodePtr->parent) << "/" << (void *)(iterNucNew->treeNodePtr->parent->data->treeNodePtr) << endl;
 			}
 			//update supervoxel-nucleus hypergraph
 			if ( assignmentId[count]->treeNode.getParent() == iterNucOwnerDaughterL )
@@ -819,7 +820,7 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 			}
 			iterNucNew->addSupervoxelToNucleus( assignmentId[count] );
 			assignmentId[count]->treeNode.setParent( iterNucNew );
-			cout << "    T4" << endl;
+			//cout << "    T4" << endl;
 		}
 	}
 
@@ -829,7 +830,7 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 	{
 		int TMaux = iterNucOwnerDaughterL->TM;
 		
-		cout << "    U1: deleting daughter " << (void *)(iterNucOwnerDaughterL->treeNodePtr) << " with parent " << (void *)(iterNucOwner->treeNodePtr) << "/" << (void *)(iterNucOwnerDaughterL->treeNodePtr->parent) << "/" << (void *)(iterNucOwnerDaughterL->treeNodePtr->parent->data->treeNodePtr) << endl;
+		//cout << "    U1: deleting daughter " << (void *)(iterNucOwnerDaughterL->treeNodePtr) << " with parent " << (void *)(iterNucOwner->treeNodePtr) << "/" << (void *)(iterNucOwnerDaughterL->treeNodePtr->parent) << "/" << (void *)(iterNucOwnerDaughterL->treeNodePtr->parent->data->treeNodePtr) << endl;
 		
 		//before removing nucleus, any children need to be reattached to the new nucleus and rootDead's lineage
 		TreeNode<ChildrenTypeLineage> *aux = iterNucOwnerDaughterL->treeNodePtr;
@@ -870,7 +871,7 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 	{
 		int TMaux = iterNucOwnerDaughterR->TM;
 		
-		cout << "    U2: deleting daughter " << (void *)(iterNucOwnerDaughterR->treeNodePtr) << " with parent " << (void *)(iterNucOwner->treeNodePtr) << "/" << (void *)(iterNucOwnerDaughterR->treeNodePtr->parent) << "/" << (void *)(iterNucOwnerDaughterR->treeNodePtr->parent->data->treeNodePtr) << endl;
+		//cout << "    U2: deleting daughter " << (void *)(iterNucOwnerDaughterR->treeNodePtr) << " with parent " << (void *)(iterNucOwner->treeNodePtr) << "/" << (void *)(iterNucOwnerDaughterR->treeNodePtr->parent) << "/" << (void *)(iterNucOwnerDaughterR->treeNodePtr->parent->data->treeNodePtr) << endl;
 		
 		//before removing nucleus, any children need to be reattached to the new nucleus and rootDead's lineage
 		TreeNode<ChildrenTypeLineage> *aux = iterNucOwnerDaughterR->treeNodePtr;
@@ -907,7 +908,7 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 		dont_repeat = false; //see if parent (now detached from daughter) is now dead and needs to find a path forward
 	}	
 
-	cout << "   V! " << extendedLineages << endl;
+	//cout << "   V! " << extendedLineages << endl;
 	return extendedLineages;//returns 1 if extension was achieved
 }
 

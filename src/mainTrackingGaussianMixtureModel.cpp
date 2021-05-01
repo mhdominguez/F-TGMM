@@ -1877,7 +1877,6 @@ int main( int argc, const char** argv )
                     	cout << "Corrected " << numCorrections << " out of " << numSplits << " initially proposed cell divisions in frame " << frameOffset << " because cell division classifier with temporal window with thr =" << cdwtClassifier->getThrCDWT() << endl;
 						
 						//DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
-						
 						//if (lengthTMthr > 0)
 						//{
 						//	//redo in case other fixes have incorporated
