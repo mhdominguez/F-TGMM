@@ -1,9 +1,10 @@
 # F-TGMM
 
 This fork is confirmed to build and run properly with Ubuntu 20.04 LTS and 
-NVIDIA CUDA toolkit 11.1.  There are improvements that allow user-set
-temporal window for logical rules, enhancements to the primary division
-detection code, and bug fixes to the secondary 3D Haar GPU division classifier.
+NVIDIA CUDA toolkit 11.1.  There are improvements in the image handling and 
+segmentation routines, enhancements to both primary division detection code 
+and to the secondary 3D Haar GPU division classifier, as well as numerous 
+bug fixes in division detection and temporal logical rules.
 
 
 ## Build Requirements
