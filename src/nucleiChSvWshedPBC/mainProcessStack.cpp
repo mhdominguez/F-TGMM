@@ -23,9 +23,11 @@
 #include "watershedPersistanceAgglomeration.h"
 #ifndef DO_NOT_USE_CUDA
 #include "CUDAmedianFilter2D/medianFilter2D.h"
+#include "CUDAmedianFilter2D/gaussianBlur2D.h"
 #include "cuda_runtime_api.h"
 #else
 #include "MedianFilter2D/medianFilter2D.h"
+#include "MedianFilter2D/gaussianBlur2D.h"
 #endif
 #ifdef PICTOOLS_JP2K
 #include "ioFunctions.h"
@@ -48,10 +50,13 @@ using namespace std;
 
 void generateSegmentationMaskFromHS(string hsFilename, int tau, size_t minSvSize);
 void parseImageFilePattern(string& imgRawPath, int frame);
-int getKernelRadiusForSigma(double sigma);
+int getKernelRadiusForSigma(float sigma);
 
 template<class imgType>
-void subtractImages(const int nDim, imgType* im1,const int* imDim,imgType* im2);
+void subtractImages(const int nDim, imgType* im1,const int* imDim,imgType* im2, float weightBlurredImageSubtract);
+
+template<class imgType>
+void z_convolve_and_subtractImages(const int nDim, imgType* im1, const int* imDim, imgType* im2, int kradius, float sigmaGaussianBlur, float weightBlurredImageSubtract);
 
 static void writeArrayToKLB(const char* filename,mylib::Array *a);
 
@@ -128,8 +133,8 @@ int main( int argc, const char** argv )
 	//parse input parameters
 	string basename;//filename without extension so we can save our binary hierarchical segmentation
 	int radiusMedianFilter = 0;//if radius = 1->3x3 medianFilter
-	double sigmaGaussianBlur = 0;
-	double weightBlurredImageSubtract = 0;
+	float sigmaGaussianBlur = 0;
+	float weightBlurredImageSubtract = 0;
 	int minTau = 0;
 	int backgroundThr = 0;
 	int conn3D = 0;
@@ -164,8 +169,8 @@ int main( int argc, const char** argv )
 		conn3D = configOptions.conn3D;
 		anisotropyZ = configOptions.anisotropyZ;
 		
-		sigmaGaussianBlur = (double)configOptions.sigmaGaussianBlur;
-		weightBlurredImageSubtract = (double)configOptions.weightBlurredImageSubtract;
+		sigmaGaussianBlur = configOptions.sigmaGaussianBlur;
+		weightBlurredImageSubtract = configOptions.weightBlurredImageSubtract;
 
 	}else if( argc == 6)
 	{
@@ -360,44 +365,74 @@ int main( int argc, const char** argv )
     //writeArrayToKLB("median.klb",img);
 	cout << "Median filtering complete in " << difftime(end,start) << " secs " << endl; // mylib::SUB_OP << endl;
 	//compute Gaussian blur for more sophisticated background subtraction
-	if ( sigmaGaussianBlur > 5 && weightBlurredImageSubtract > 0 ) {
+	if ( sigmaGaussianBlur > 5 && weightBlurredImageSubtract > 0 )
+	{
 		//perform Gaussian Blur then subtract from median filtered image
 		//mylib::Array* img_blurred = Convert_Image(img, img->kind, img->type, img->scale); //copy the image array
 		mylib::Array* img_blurred = mylib::Copy_Array(img); //copy the image array since we will convolve in place
-		//cout << "line A" << endl;
+		int kradius = getKernelRadiusForSigma(sigmaGaussianBlur);
+		
+#ifndef DO_NOT_USE_CUDA
+		gaussianBlurCUDASliceBySlice((imgVoxelType*) (img_blurred->data), img_blurred->dims, sigmaGaussianBlur,devCUDA);
+#else
+		gaussianBlur2DSliceBySlice((imgVoxelType*)(img_blurred->data), img_blurred->dims, kradius, sigmaGaussianBlur );
+		
+		/*DEBUG standard blur kernel printing
+		mylib::Double_Vector *xy_kernel = mylib::Gaussian_Filter((double)sigmaGaussianBlur, kradius);//cout << "line B" << endl;
+		double *vecPtr = (double*)xy_kernel->data;
+		cout << "mylib gb kernel:";
+		for ( int ii=0; ii<kradius*2+1; ii++ )
+			cout << ii << ":" << vecPtr[ii] << ",";
+		cout << endl;*/
+		
+		//old code for XY separable convolution: single-threaded, using mylib  -- very slow
+		/*
 		//make XY kernel and convolve
-		mylib::Double_Vector *xy_kernel = mylib::Gaussian_Filter(sigmaGaussianBlur, getKernelRadiusForSigma(sigmaGaussianBlur));//cout << "line B" << endl;
+		mylib::Double_Vector *xy_kernel = mylib::Gaussian_Filter((double)sigmaGaussianBlur, kradius);//cout << "line B" << endl;
 		//mylib::Scale_Array( xy_kernel, weightBlurredImageSubtract, 0 );//cout << "line C" << endl;
 		mylib::Filter_Dimension(img_blurred,xy_kernel,0);//cout << "line D" << endl;
 		if ( img->ndims >1 )
-			mylib::Filter_Dimension(img_blurred,xy_kernel,1);
-		//cout << "line E" << endl;
-		if ( img->ndims == 3 ) {
+			mylib::Filter_Dimension(img_blurred,xy_kernel,1);*/
+#endif	
+		//writeArrayToKLB("gaussian_blurred_2d.klb",img_blurred); // DEBUG
+		time(&start);
+		cout << "Gaussian blur xy complete in " << difftime(start,end) << " secs" << endl;
+		if ( img->ndims == 3 )
+		{
 			//change to making Z kernel and convolve
-			sigmaGaussianBlur /= anisotropyZ; 
-			mylib::Double_Vector *z_kernel = mylib::Gaussian_Filter(sigmaGaussianBlur, getKernelRadiusForSigma(sigmaGaussianBlur));
-			//mylib::Scale_Array( z_kernel, weightBlurredImageSubtract, 0 );
+			sigmaGaussianBlur /= anisotropyZ;
+			kradius = getKernelRadiusForSigma(sigmaGaussianBlur);			
+			
+			//for whatever reason, convolution in z is very slow single-threaded in C++; therefore, use mylib to do this and comment out the next line below
+			//z_convolve_and_subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data), kradius, sigmaGaussianBlur, weightBlurredImageSubtract );
+			
+			//old code for z convolution: single-threaded, using mylib -- very slow, but faster than single-threaded C++
+			mylib::Double_Vector *z_kernel = mylib::Gaussian_Filter((double)sigmaGaussianBlur,kradius);
+			
+			if ( weightBlurredImageSubtract < 0.95 || weightBlurredImageSubtract > 1.05 ) //if scaling down the blurred image before subtract, save time by scaling down z kernel and applying that to the 3rd dimension
+			{
+				mylib::Scale_Array( z_kernel, weightBlurredImageSubtract, 0 );
+				weightBlurredImageSubtract = 1.0f; //reset so we don't have to multiply again within subtractImages
+			}
 			mylib::Filter_Dimension(img_blurred,z_kernel,2);
+
+			//writeArrayToKLB("gaussian_blurred_3d.klb",img_blurred); // DEBUG
+			
+			//perform subtraction
+			subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data), 1.0f );
 		}
-		//cout << "line F" << endl;
-		//writeArrayToKLB("gaussian_blurred.klb",img_blurred); // DEBUG
-		mylib::Value v;
-		v.fval = weightBlurredImageSubtract;
+		else if ( img->ndims == 2 ) //2D, so do weighting step there
+		{
+			subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data), weightBlurredImageSubtract );
+		}
 		
-		mylib::Scale_Array( img_blurred, weightBlurredImageSubtract, 0 );
-		//writeArrayToKLB("gaussian_blurred_factor.klb",img_blurred); // DEBUG
-		//mylib::Array_Op_Array(img,mylib::SUB_OP,img_blurred); //subtract in place img_blurred from img to produce the background-subtracted final image for segmentation
-		//mylib::Kill_Array(img_blurred);
-		//subtract_images((imgVoxelType*)(img->data), img->dims)
-		//perform subtraction
-		subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data));
-		
-		writeArrayToKLB("gaussian_blur_subtracted.klb",img); //DEBUG
+		//writeArrayToKLB("gaussian_blur_subtracted.klb",img); //DEBUG
 		mylib::Kill_Array(img_blurred);
-		//img = img_blurred;
+		
+		time(&end);
+		cout << "Gaussian blur z (if applicable) and background subtraction complete in " << difftime(end,start) << " secs" << endl; 
 	}
-	time(&start);
-	cout << "Gaussian blur background subtraction complete in " << difftime(start,end) << " secs" << endl; 
+
 	//build hierarchical tree
 	//cout<<"DEBUGGING: building hierarchical tree"<<endl;
 	int64 imgDims[dimsImage];
@@ -582,7 +617,7 @@ void parseImageFilePattern(string& imgRawPath, int frame)
 }
 
 //=======================================================================
-int getKernelRadiusForSigma(double sigma) {
+int getKernelRadiusForSigma(float sigma) {
   int size = int(ceilf(sigma * 3)); //3 sigmas plus/minus should be decent
   if (size < 3) {
     size = 3;
@@ -596,11 +631,17 @@ int getKernelRadiusForSigma(double sigma) {
 
 //===============================================
 template<class imgType>
-void subtractImages(const int nDim, imgType* im1, const int* imDim, imgType* im2)
+void subtractImages(const int nDim, imgType* im1, const int* imDim, imgType* im2, float weightBlurredImageSubtract)
 {
 	uint64_t sliceSize = imDim[0];
 	for (int ii = 1; ii < nDim; ii++)
 		sliceSize *= imDim[ii];
+	
+	if ( weightBlurredImageSubtract < 0.95 || weightBlurredImageSubtract > 1.05 )
+	{
+		for ( uint64_t ii = 0; ii<sliceSize; ii++)
+			im2[ii] *= weightBlurredImageSubtract;
+	}
 	
 	for ( uint64_t ii = 0; ii<sliceSize; ii++)
 		if( im2[ii] >= im1[ii] )
@@ -609,9 +650,71 @@ void subtractImages(const int nDim, imgType* im1, const int* imDim, imgType* im2
 			im1[ii] -= im2[ii];
 }
 
+//declare all the possible types so template compiles properly
+template void subtractImages<unsigned char>(const int nDim, unsigned char* im1, const  int* imDim, unsigned char* im2, float weightBlurredImageSubtract);
+template void subtractImages<unsigned short int>(const int nDim, unsigned short int* im1, const  int* imDim, unsigned short int* im2, float weightBlurredImageSubtract);
+template void subtractImages<float>(const int nDim, float* im1, const int* imDim, float* im2, float weightBlurredImageSubtract);
 
+
+
+template<class imgType>
+void z_convolve_and_subtractImages(const int nDim, imgType* im1, const int* imDim, imgType* im2, int kradius, float sigmaGaussianBlur, float weightBlurredImageSubtract)
+{
+	//fill kernel
+	float *kernel = new float[kradius*2+1];
+	gaussianBlurKernel(sigmaGaussianBlur, kradius*2+1, kernel);
+	
+	//adjust for our user-configured weighting
+	if ( weightBlurredImageSubtract < 0.95 || weightBlurredImageSubtract > 1.05 )
+	{
+		for ( int ii=0; ii<=kradius*2; ii++ )
+			kernel[ii] *= weightBlurredImageSubtract;
+	}
+	
+	//convolve in z on im2 and subtract from im1 in one loop, storing result in im1
+	double sum;
+	imgType sum_imgType;
+	unsigned int x,y,z, y_pos,im1_pos, im1_pos_test = 0;
+	const unsigned int xy_dim = imDim[0] * imDim[1];
+	int k,d;
+	for ( z = 0, im1_pos=0; z<imDim[2]; z++)
+	{
+		for(y = 0,y_pos=0; y < imDim[1]; y++)
+		{
+			for(x = 0; x < imDim[0]; x++)
+			{
+				sum = 0;
+				for (k = -kradius; k <= kradius; k++)
+				{
+					d = z + k;
+
+					if ( d >= 0 && d < imDim[2] )
+					{
+						sum += im2[d * xy_dim + y_pos] * kernel[kradius - k];
+					}
+				}
+
+				sum_imgType = (imgType)sum;
+				//im1_pos =  z * imDim[0] * imDim[1] + y * imDim[0] + x;
+				//
+				//if ( im1_pos_test != im1_pos )
+				//	cout << "DEBUG: im1_pos_test != im1_pos: " << im1_pos_test << " vs. " << im1_pos << endl;
+				
+				if ( sum_imgType >= im1[im1_pos] )
+					im1[im1_pos] = 0;
+				else
+					im1[im1_pos] -= sum_imgType;
+				im1_pos++;
+				y_pos++;
+			}
+		}
+		//cout << "Z: " << z << endl;
+	}
+	
+	delete kernel;
+}
 
 //declare all the possible types so template compiles properly
-template void subtractImages<unsigned char>(const int nDim, unsigned char* im1, const  int* imDim, unsigned char* im2);
-template void subtractImages<unsigned short int>(const int nDim, unsigned short int* im1, const  int* imDim, unsigned short int* im2);
-template void subtractImages<float>(const int nDim, float* im1, const int* imDim, float* im2);
+template void z_convolve_and_subtractImages<unsigned char>(const int nDim, unsigned char* im1, const  int* imDim, unsigned char* im2, int kradius, float sigmaGaussianBlur, float weightBlurredImageSubtract);
+template void z_convolve_and_subtractImages<unsigned short int>(const int nDim, unsigned short int* im1, const  int* imDim, unsigned short int* im2, int kradius, float sigmaGaussianBlur, float weightBlurredImageSubtract);
+template void z_convolve_and_subtractImages<float>(const int nDim, float* im1, const int* imDim, float* im2, int kradius, float sigmaGaussianBlur, float weightBlurredImageSubtract);

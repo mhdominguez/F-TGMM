@@ -1,8 +1,8 @@
 //Martin H. Dominguez
 //2021 Gladstone Institutes
 
-#ifndef __MEDIAN_FILTER_2D_CUDA_H__
-#define __MEDIAN_FILTER_2D_CUDA_H__
+#ifndef __GAUSSIAN_BLUR_2D_CUDA_H__
+#define __GAUSSIAN_BLUR_2D_CUDA_H__
 
 
 //define constants
@@ -15,6 +15,7 @@
 static const int MAX_THREADS_CUDA = 1024; //adjust it for your GPU. This is correct for a 2.0 architecture
 static const int MAX_BLOCKS_CUDA = 65535;
 static const int BLOCK_SIDE = 32; //we load squares into share memory. 32*32 = 1024, which is the maximum number of threads per block for CUDA arch 2.0. 
+
 #endif
 #endif
 
@@ -36,7 +37,7 @@ static const int dimsImageSlice = 2;//so thing can be set at co0mpile time
 */
 
 template<class imgType>
-int gaussianBlurCUDA(imgType* im,int* imDim,int radius,int devCUDA);
+int gaussianBlurCUDA(imgType* im,int* imDim,float sigma,int devCUDA);
 
 
 /*
@@ -45,7 +46,7 @@ int gaussianBlurCUDA(imgType* im,int* imDim,int radius,int devCUDA);
 */
 
 template<class imgType>
-int gaussianBlurCUDASliceBySlice(imgType* im,int* imDim,int radius,int devCUDA);
+int gaussianBlurCUDASliceBySlice(imgType* im,int* imDim,float sigma,int devCUDA);
 
 
 int getKernelRadiusForSigmaCUDA(float sigma);

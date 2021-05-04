@@ -22,8 +22,8 @@
 
 //#define PROFILE_CODE // uncomment this to time execution
 
-int sliceId;//onlye one thread accesses a single slice
-std::mutex				g_lockblockId;//so each worker reads a unique slice
+int sliceId_mF2D;//onlye one thread accesses a single slice
+std::mutex				g_lockblockId_mF2D;//so each worker reads a unique slice
 
 using namespace std;
 
@@ -297,9 +297,9 @@ void medianFilter2Dworker(imgType* im, const int* imDim, int radius)
 	while (1)
 	{
 		//get the blockId resource
-		std::unique_lock<std::mutex> locker(g_lockblockId);//exception safe
-		sliceId_t = sliceId;
-		sliceId++;
+		std::unique_lock<std::mutex> locker(g_lockblockId_mF2D);//exception safe
+		sliceId_t = sliceId_mF2D;
+		sliceId_mF2D++;
 		locker.unlock();
 
 		//check if we have more blocks
@@ -333,7 +333,7 @@ void medianFilter2DSliceBySlice(imgType* im,const  int* imDim, int radius)
 	for (int ii = 1; ii < dimsImageSlice; ii++)
 		sliceSize *= imDim[ii];
 	
-	sliceId = 0;//initialize count
+	sliceId_mF2D = 0;//initialize count
 
 	// start the working threads
 	std::vector<std::thread> threads;

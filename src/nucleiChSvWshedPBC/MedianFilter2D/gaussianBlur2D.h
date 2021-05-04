@@ -1,8 +1,8 @@
 //Martin H. Dominguez
 //2021 Gladstone Institutes
 
-#ifndef __MEDIAN_FILTER_2D_H__
-#define __MEDIAN_FILTER_2D_H__
+#ifndef __GAUSSIAN_BLUR_2D_H__
+#define __GAUSSIAN_BLUR_2D_H__
 
 
 
@@ -24,8 +24,7 @@ static const int dimsImageSlice = 2;//so thing can be set at co0mpile time
 */
 
 template<class imgType>
-void nvsepgold_gaussianBlur2D(const imgType* im, const int* imDim, int radius, imgType *imOut);
-
+void nvsepgold_gaussianBlur2D(imgType* im,const int* imDim,int kradius, float *kernel, imgType *imOut, uint64_t sliceSize);
 
 /*
 	\brief apply gaussianBlur2D to a 3D stack slice by slice (or an RGB stack) using multithreading
@@ -33,9 +32,8 @@ void nvsepgold_gaussianBlur2D(const imgType* im, const int* imDim, int radius, i
 */
 
 template<class imgType>
-void gaussianBlur2DSliceBySlice(imgType* im,const int* imDim,int radius);
-
+void gaussianBlur2DSliceBySlice(imgType* im,const  int* imDim, int kradius, float sigma);
 
 void gaussianBlurKernel(float sigma, int size, float* kernel);
 
-#endif //__MEDIAN_FILTER_2D_H__
+#endif //__GAUSSIAN_BLUR_2D_H__

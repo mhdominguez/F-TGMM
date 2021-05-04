@@ -191,7 +191,7 @@ struct configOptionsTrackingGaussianMixture
 		//elements for watershed segmentation
 		radiusMedianFilter = 2;
 		sigmaGaussianBlur = 20.0f;
-		weightBlurredImageSubtract = 0.5f;
+		weightBlurredImageSubtract = 1.0f;
 		useMedianFilterForTracking = 0;
 		minTau = 2;
 		backgroundThreshold = -1e32f;

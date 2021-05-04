@@ -228,7 +228,7 @@ int medianFilterCUDASliceBySlice(imgType* im,int* imDim,int radius,int devCUDA)
 	for (int ii = 0 ; ii< dimsImageSlice; ii++)
 		numBlocks[ii] = (int) (ceil( (float)(imDim[ii] + radius ) / (float)(BLOCK_SIDE - 2 * radius) ) );
 	dim3 blocks(numBlocks[0], numBlocks[1]);//enough to cover all the image
-
+	//printf("Threads: {%d, %d, %d}. Blocks: {%d, %d, %d}.\n",threads.x, threads.y, threads.z, blocks.x, blocks.y, blocks.z);
 	//perform median filter slice by slice
 	for( int slice = 0; slice < imDim[dimsImageSlice ]; slice++)
 	{

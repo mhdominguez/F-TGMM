@@ -23,73 +23,90 @@
 
 __constant__ int imDimCUDA[dimsImageSlice];//image dimensions
 
+template<int radius>
+__constant__ float kernelCUDA[ radius*2+1 ];
+
+// how many threads per block in x (total num threads: x*y)
+#define	ROWS_BLOCKDIM_X 16
+// how many threads per block in y
+#define	ROWS_BLOCKDIM_Y 16
+// how many pixels in x are convolved by each thread
+#define	ROWS_RESULT_STEPS 8
+// these are the border pixels (loaded to support the kernel width for processing)
+// the effective border width is ROWS_HALO_STEPS * ROWS_BLOCKDIM_X, which has to be
+// larger or equal to the kernel radius to work
+#define	ROWS_HALO_STEPS 1
+
+#define	COLUMNS_BLOCKDIM_X 16
+#define	COLUMNS_BLOCKDIM_Y 16
+#define	COLUMNS_RESULT_STEPS 8
+#define	COLUMNS_HALO_STEPS 1
+
+#define	DEPTH_BLOCKDIM_X 16
+#define	DEPTH_BLOCKDIM_Z 16
+#define	DEPTH_RESULT_STEPS 8
+#define	DEPTH_HALO_STEPS 1
+
+static const float SQRT_2PI = sqrt(2*M_PI);
 
 
 //=====================================================================================
 template<class imgType, int radius>
-__global__ void __launch_bounds__(BLOCK_SIDE*BLOCK_SIDE) gaussianBlurCUDAkernel(imgType* imCUDAin, imgType* imCUDAout, unsigned int imSize, float *kernel)
+__global__ void __launch_bounds__(MAX_THREADS_CUDA) gaussianBlurCUDAkernel(imgType* imCUDAin, imgType* imCUDAout, float *kernel, unsigned int imSize, bool convolve_y )
 {
-
-	const int radiusSize = ( 1 + 2 * radius) * ( 1 + 2 * radius);
 	//shared memory to copy global memory
-	__shared__ imgType blockNeigh [BLOCK_SIDE * BLOCK_SIDE];//stores values for a whole block
-	imgType imgNeigh[ radiusSize ];//store values for each thread. This is the reason why radius is a template parameter and not a function input variable. Here we have a chance that everything fits in register memory for small radiuses
+	__shared__ double blockNeigh [MAX_THREADS_CUDA];//stores values for a whole block
+
+	double sum;
+	int offset_x;
+	int offset_y;
+	int tid;
 	
-	
-	int offset_x = blockIdx.x * (BLOCK_SIDE - 2* radius) - radius + threadIdx.x;//upper left corner of the image to start loading into share memory (counting overlap to accomodate radius)
-	int offset_y = blockIdx.y * (BLOCK_SIDE - 2* radius) - radius + threadIdx.y;//upper left corner of the image to start loading into share memory (counting overlap to accomodate radius)
-	
-	int tid = threadIdx.y * BLOCK_SIDE + threadIdx.x;
+	if (convolve_y) //y-dimension convolution
+	{
+		offset_y = blockIdx.y * (MAX_THREADS_CUDA - (2* radius+1)) -radius + threadIdx.x;
+		offset_x = blockIdx.x;
+		tid = threadIdx.x;
+	}
+	else //x-dimension convolution
+	{
+		offset_x = blockIdx.x * (MAX_THREADS_CUDA - (2* radius+1)) -radius + threadIdx.x;
+		offset_y = blockIdx.y;
+		tid = threadIdx.x;
+	}
 
 	//each thread loads one pixel into share memory (colescent access)
 	int pos;
 	if( offset_x < 0 || offset_y < 0 || offset_x >= imDimCUDA[0] || offset_y >= imDimCUDA[1] )//out of bounds
 	{
 		pos = -1;
-		blockNeigh[ tid ] = 0;//for now we assume zeros outside image boundaries
+		blockNeigh[ tid ] = 0;//zeros outside image boundaries
 	}else{
 		pos = offset_x + offset_y  * imDimCUDA[0];
-		blockNeigh[ tid ] = imCUDAin[pos];
+		blockNeigh[ tid ] = (double)imCUDAin[pos];
 	}
-
 	__syncthreads();
-
-	if( threadIdx.x < radius || threadIdx.x >= BLOCK_SIDE-radius || threadIdx.y < radius || threadIdx.y >= BLOCK_SIDE-radius)
-		return;//these threads are not needed (kind of a waste, but it is OK);
-
 	
-	//operate on block: this part could be substituted by any other operation in a blokc if we want to apply a different filter than median		
-	int pp, count = 0;
-	for( int ii = -radius; ii <= radius; ii++)
-	{
-		pp = threadIdx.x -radius + BLOCK_SIDE * ( threadIdx.y + ii );//initial position for jj for loop		
+	if( tid < radius || tid >= MAX_THREADS_CUDA-radius )
+		return;//these threads are not needed (kind of a waste, but it is OK);	
 
-		for( int jj = -radius; jj <= radius; jj++)
-		{				
-			imgNeigh[count++] = blockNeigh[pp++];
+	//here, we actually calculate the one-dimension convolution for this pixel
+	int d;
+	for( int k = -radius; k <= radius; k++)
+	{
+		d = tid + k;
+		if(d >= 0 && d < MAX_THREADS_CUDA)
+		{
+			sum += (double)(blockNeigh[d] * kernelCUDA<radius>[radius - k]);
+			//if (blockNeigh[d]>0)
+			//	printf("found non-zero blockNeigh value at %d for {%d,%d}: %d\n",d,offset_x, offset_y, (int)blockNeigh[d] );
 		}
 	}
-
-	//selection algorithm to find the k-th smallest number (k = (radiusSize - 1) /2 (http://en.wikipedia.org/wiki/Selection_algorithm)
-	imgType temp;
-	for ( int ii=0; ii < (1 + radiusSize) /2; ii++)
-	{
-		// Find position of minimum element
-		pp = ii;//minIndex
-		for ( int jj = ii+1; jj < radiusSize; jj++)
-		{
-			if (imgNeigh[jj] < imgNeigh[pp])
-			{
-				pp = jj;
-			}
-		}
-		temp = imgNeigh[pp];
-		imgNeigh[pp] = imgNeigh[ii];
-		imgNeigh[ii] = temp;
-	}	
 
 	if( pos>=0 && pos< imSize )
-		imCUDAout[ pos ] = imgNeigh[ (radiusSize - 1) /2 ];
+		imCUDAout[ pos ] = (imgType)(sum);
+		//printf("%d: {%d, %d}/%d: %d/%d.\n",tid, offset_x, offset_y, pos, (int)imCUDAout[ pos ], (int)blockNeigh[tid]);
+	
 };
 
 
@@ -97,16 +114,15 @@ __global__ void __launch_bounds__(BLOCK_SIDE*BLOCK_SIDE) gaussianBlurCUDAkernel(
 //===========================================================================
 
 template<class imgType>
-int gaussianBlurCUDA(imgType* im,int* imDim,int radius,int devCUDA)
+int gaussianBlurCUDA(imgType* im,int* imDim,float sigma,int devCUDA)
 {
 	HANDLE_ERROR( cudaSetDevice( devCUDA ) );
 
-	if( radius > (int)(floor( (BLOCK_SIDE -1) / 2.0f) )  || 2 * radius >= BLOCK_SIDE)
-	{
-		std::cout<<"ERROR: at gaussianBlurCUDA: code is not ready for such a large radius. Maximum radius allowed is "<<(int)(floor( (BLOCK_SIDE - 1) / 2.0f) )<<std::endl;
-		return 2;
-	}
-
+	int kradius = getKernelRadiusForSigmaCUDA(sigma);
+	
+	//fill kernel
+	float kernel[kradius*2+1];
+	gaussianBlurKernel(sigma, kradius*2+1, kernel);	
 
 	imgType* imCUDAinput = NULL;
 	imgType* imCUDAoutput = NULL;
@@ -123,54 +139,49 @@ int gaussianBlurCUDA(imgType* im,int* imDim,int radius,int devCUDA)
 	//transfer input: image and image dimensions
 	HANDLE_ERROR(cudaMemcpy(imCUDAinput, im, imSize * sizeof(imgType), cudaMemcpyHostToDevice));
 	HANDLE_ERROR(cudaMemcpyToSymbol(imDimCUDA,imDim, dimsImageSlice * sizeof(int)));//constant memory
-
+	
 	//run kernel	
 	dim3 threads( BLOCK_SIDE, BLOCK_SIDE );
 	int numBlocks[dimsImageSlice];
 	for (int ii = 0 ; ii< dimsImageSlice; ii++)
-		numBlocks[ii] = (int) (ceil( (float)(imDim[ii] + radius ) / (float)(BLOCK_SIDE - 2 * radius) ) );
+		numBlocks[ii] = (int) (ceil( (float)(imDim[ii] + kradius ) / (float)(BLOCK_SIDE - 2 * kradius) ) );
 	dim3 blocks(numBlocks[0], numBlocks[1]);//enough to cover all the image
 
-	switch(radius)
+	switch(kradius)
 	{
 	case 0:
 		//do nothing
 		break;
-	case 1:
-		gaussianBlurCUDAkernel<imgType, 1> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
-		break;
-	case 2:
-		gaussianBlurCUDAkernel<imgType, 2> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
-		break;
-	case 3:
-		gaussianBlurCUDAkernel<imgType, 3> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
-		break;
-	case 4:
-		gaussianBlurCUDAkernel<imgType, 4> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
-		break;
-	case 5:
-		gaussianBlurCUDAkernel<imgType, 5> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
-		break;
-	case 6:
-		gaussianBlurCUDAkernel<imgType, 6> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
-		break;
-	case 7:
-		gaussianBlurCUDAkernel<imgType, 7> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
-		break;
-	case 8:
-		gaussianBlurCUDAkernel<imgType, 8> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
-		break;
-	case 9:
-		gaussianBlurCUDAkernel<imgType, 9> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
-		break;
-	case 10:
-		gaussianBlurCUDAkernel<imgType, 10> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
-		break;
-	case 11:
-		gaussianBlurCUDAkernel<imgType, 11> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
-		break;
+		case 1:
+			cudaMemcpyToSymbol(  kernelCUDA<1>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 1> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false );HANDLE_ERROR_KERNEL;
+			break;
+		case 3:
+			cudaMemcpyToSymbol(  kernelCUDA<3>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 3> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			break;
+		case 7:
+			cudaMemcpyToSymbol(  kernelCUDA<7>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 7> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			break;
+		case 15:
+			cudaMemcpyToSymbol(  kernelCUDA<15>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 15> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			break;
+		case 31:
+			cudaMemcpyToSymbol(  kernelCUDA<31>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 31> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			break;
+		case 63:
+			cudaMemcpyToSymbol(  kernelCUDA<63>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 63> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			break;
+		case 127:
+			cudaMemcpyToSymbol(  kernelCUDA<127>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 127> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			break;
 	default:
-		std::cout<<"ERROR: at gaussianBlurCUDA: code is not ready for such a large radius." <<std::endl;//If I need it at any point, I could extend this up to (int)(floor( (BLOCK_SIDE -1) / 2.0f) )
+		std::cout<<"ERROR: at gaussianBlurCUDA: code is not ready for discrete radius "<<kradius <<std::endl;//If I need it at any point, I could extend this up to (int)(floor( (BLOCK_SIDE -1) / 2.0f) )
 		return 4;
 	}
 	//copy result to host
@@ -184,9 +195,9 @@ int gaussianBlurCUDA(imgType* im,int* imDim,int radius,int devCUDA)
 }
 
 //declare all the possible types so template compiles properly
-template int gaussianBlurCUDA<unsigned char>(unsigned char* im,int* imDim,int radius,int devCUDA);
-template int gaussianBlurCUDA<unsigned short int>(unsigned short int* im,int* imDim,int radius,int devCUDA);
-template int gaussianBlurCUDA<float>(float* im,int* imDim,int radius,int devCUDA);
+template int gaussianBlurCUDA<unsigned char>(unsigned char* im,int* imDim,float sigma,int devCUDA);
+template int gaussianBlurCUDA<unsigned short int>(unsigned short int* im,int* imDim,float sigma,int devCUDA);
+template int gaussianBlurCUDA<float>(float* im,int* imDim,float sigma,int devCUDA);
 
 
 //===========================================================================
@@ -203,7 +214,7 @@ int gaussianBlurCUDASliceBySlice(imgType* im,int* imDim,float sigma,int devCUDA)
 	HANDLE_ERROR( cudaEventRecord(start,0 ) );
 #endif
 
-	int radius = getKernelRadiusForSigmaCUDA(sigma);
+	int kradius = getKernelRadiusForSigmaCUDA(sigma);
 	
 	//fill kernel
 	float kernel[kradius*2+1];
@@ -222,55 +233,102 @@ int gaussianBlurCUDASliceBySlice(imgType* im,int* imDim,float sigma,int devCUDA)
 	HANDLE_ERROR( cudaMalloc( (void**)&(imCUDAinput), imSize * sizeof(imgType) ) );
 	HANDLE_ERROR( cudaMalloc( (void**)&(imCUDAoutput), imSize * sizeof(imgType) ) );
 
-	//kernel parameters
-	dim3 threads( BLOCK_SIDE, BLOCK_SIDE );
-	int numBlocks[dimsImageSlice];
-	for (int ii = 0 ; ii< dimsImageSlice; ii++)
-		numBlocks[ii] = (int) (ceil( (float)(imDim[ii] + radius ) / (float)(BLOCK_SIDE - 2*radius) ) );
-	dim3 blocks(numBlocks[0], numBlocks[1]);//enough to cover all the image
+	//copy imDim as constant
+	HANDLE_ERROR(cudaMemcpyToSymbol(imDimCUDA,imDim, dimsImageSlice * sizeof(int)));//constant memory	
+	
+	dim3 threads( MAX_THREADS_CUDA ); //we will go line-by-line or column-by-column, or shorter than that, as dictated by max threads
+	dim3 blocks;
 
-	//perform median filter slice by slice
+	
+	//perform separable convolution slice by slice
 	for( int slice = 0; slice < imDim[dimsImageSlice ]; slice++)
 	{
-
 		//transfer input: image and image dimensions
 		HANDLE_ERROR(cudaMemcpy(imCUDAinput, im, imSize * sizeof(imgType), cudaMemcpyHostToDevice));
-		HANDLE_ERROR(cudaMemcpyToSymbol(imDimCUDA,imDim, dimsImageSlice * sizeof(int)));//constant memory
-
+		
 		//run kernel			
-		switch(radius)
+		switch(kradius)
 		{
 		case 0:
 			//do nothing
 			break;
 		case 1:
-			gaussianBlurCUDAkernel<imgType, 1> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
+			blocks.x = (int) (ceil( (float)(imDim[0]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			blocks.y = imDim[1];
+			if ( slice == 0 )
+				cudaMemcpyToSymbol(  kernelCUDA<1>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 1> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			blocks.x = imDim[0];
+			blocks.y = (int) (ceil( (float)(imDim[1]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			gaussianBlurCUDAkernel<imgType, 1> <<<blocks, threads>>>(imCUDAoutput, imCUDAinput, kernel, imSize, true);HANDLE_ERROR_KERNEL;
 			break;
 		case 3:
-			gaussianBlurCUDAkernel<imgType, 3> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
+			blocks.x = (int) (ceil( (float)(imDim[0]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			blocks.y = imDim[1];
+			if ( slice == 0 )
+				cudaMemcpyToSymbol(  kernelCUDA<3>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 3> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			blocks.x = imDim[0];
+			blocks.y = (int) (ceil( (float)(imDim[1]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			gaussianBlurCUDAkernel<imgType, 3> <<<blocks, threads>>>(imCUDAoutput, imCUDAinput, kernel, imSize, true);HANDLE_ERROR_KERNEL;
 			break;
 		case 7:
-			gaussianBlurCUDAkernel<imgType, 7> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
+			blocks.x = (int) (ceil( (float)(imDim[0]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			blocks.y = imDim[1];
+			if ( slice == 0 )
+				cudaMemcpyToSymbol(  kernelCUDA<7>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 7> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			blocks.x = imDim[0];
+			blocks.y = (int) (ceil( (float)(imDim[1]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			gaussianBlurCUDAkernel<imgType, 7> <<<blocks, threads>>>(imCUDAoutput, imCUDAinput, kernel, imSize, true);HANDLE_ERROR_KERNEL;
 			break;
 		case 15:
-			gaussianBlurCUDAkernel<imgType, 15> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
+			blocks.x = (int) (ceil( (float)(imDim[0]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			blocks.y = imDim[1];	
+			if ( slice == 0 )
+				cudaMemcpyToSymbol(  kernelCUDA<15>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 15> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			blocks.x = imDim[0];
+			blocks.y = (int) (ceil( (float)(imDim[1]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			gaussianBlurCUDAkernel<imgType, 15> <<<blocks, threads>>>(imCUDAoutput, imCUDAinput, kernel, imSize, true);HANDLE_ERROR_KERNEL;
 			break;
 		case 31:
-			gaussianBlurCUDAkernel<imgType, 31> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
+			blocks.x = (int) (ceil( (float)(imDim[0]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			blocks.y = imDim[1];	
+			if ( slice == 0 )
+				cudaMemcpyToSymbol(  kernelCUDA<31>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 31> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			blocks.x = imDim[0];
+			blocks.y = (int) (ceil( (float)(imDim[1]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			gaussianBlurCUDAkernel<imgType, 31> <<<blocks, threads>>>(imCUDAoutput, imCUDAinput, kernel, imSize, true);HANDLE_ERROR_KERNEL;
 			break;
 		case 63:
-			gaussianBlurCUDAkernel<imgType, 63> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
+			blocks.x = (int) (ceil( (float)(imDim[0]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			blocks.y = imDim[1];			
+			if ( slice == 0 )
+				cudaMemcpyToSymbol(  kernelCUDA<63>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 63> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			blocks.x = imDim[0];
+			blocks.y = (int) (ceil( (float)(imDim[1]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			gaussianBlurCUDAkernel<imgType, 63> <<<blocks, threads>>>(imCUDAoutput, imCUDAinput, kernel, imSize, true);HANDLE_ERROR_KERNEL;
 			break;
 		case 127:
-			gaussianBlurCUDAkernel<imgType, 127> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, imSize);HANDLE_ERROR_KERNEL;
+			blocks.x = (int) (ceil( (float)(imDim[0]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			blocks.y = imDim[1];
+			if ( slice == 0 )			
+				cudaMemcpyToSymbol(  kernelCUDA<127>, kernel, (kradius*2+1) * sizeof(float) );
+			gaussianBlurCUDAkernel<imgType, 127> <<<blocks, threads>>>(imCUDAinput, imCUDAoutput, kernel, imSize, false);HANDLE_ERROR_KERNEL;
+			blocks.x = imDim[0];
+			blocks.y = (int) (ceil( (float)(imDim[1]+kradius) / (float)(MAX_THREADS_CUDA - (2 * kradius+1)) ) );
+			gaussianBlurCUDAkernel<imgType, 127> <<<blocks, threads>>>(imCUDAoutput, imCUDAinput, kernel, imSize, true);HANDLE_ERROR_KERNEL;
 			break;
 		default:
-			std::cout<<"ERROR: at gaussianBlurCUDA: code is not ready for discrete radius "<<radius <<std::endl;//If I need it at any point, I could extend this up to (int)(floor( (BLOCK_SIDE -1) / 2.0f) )
+			std::cout<<"ERROR: at gaussianBlurCUDA: code is not ready for discrete radius "<<kradius <<std::endl;//If I need it at any point, I could extend this up to (int)(floor( (BLOCK_SIDE -1) / 2.0f) )
 			return 4;
 		}
 		//copy result to host
-		HANDLE_ERROR(cudaMemcpy(im, imCUDAoutput, imSize * sizeof(imgType), cudaMemcpyDeviceToHost));
-
+		HANDLE_ERROR(cudaMemcpy(im, imCUDAinput, imSize * sizeof(imgType), cudaMemcpyDeviceToHost));
+	
 		im += imSize;//increment pointer to next slice
 	}
 
@@ -294,9 +352,9 @@ int gaussianBlurCUDASliceBySlice(imgType* im,int* imDim,float sigma,int devCUDA)
 }
 
 //declare all the possible types so template compiles properly
-template int gaussianBlurCUDASliceBySlice<unsigned char>(unsigned char* im,int* imDim,int radius,int devCUDA);
-template int gaussianBlurCUDASliceBySlice<unsigned short int>(unsigned short int* im,int* imDim,int radius,int devCUDA);
-template int gaussianBlurCUDASliceBySlice<float>(float* im,int* imDim,int radius,int devCUDA);
+template int gaussianBlurCUDASliceBySlice<unsigned char>(unsigned char* im,int* imDim,float sigma,int devCUDA);
+template int gaussianBlurCUDASliceBySlice<unsigned short int>(unsigned short int* im,int* imDim,float sigma,int devCUDA);
+template int gaussianBlurCUDASliceBySlice<float>(float* im,int* imDim,float sigma,int devCUDA);
 
 int getKernelRadiusForSigmaCUDA(float sigma) {
 	int size = int(ceilf(sigma * 3)); //3 sigmas plus/minus should be decent
@@ -319,13 +377,17 @@ int getKernelRadiusForSigmaCUDA(float sigma) {
 
 void gaussianBlurKernel(float sigma, int size, float* kernel)
 {
-	float sigma2 = sigma * sigma;
+	float sigma2 = 2.0f * sigma * sigma;
+	float sigma1 = 1.0f / sqrt( M_PI * sigma2 ); 
 	int middle = size / 2;
+	//std::cout << "GB kernel: ";
 	for (int i = 0; i < size; ++i)
 	{
 		float distance = float (middle - i);
-		float distance2 = distance * distance;
-		float s = 1.0f / (sigma * SQRT_2PI * expf(-distance2 / (2.0f * sigma2));
-		kernel[i] = s;
+		//float distance2 = distance * distance;
+		//float s = 1.0f / (sigma * sqrtf(2.0f * PI_F)) * expf(-distance2 / (2.0f * sigma2));
+		kernel[i] = sigma1 * exp(-(distance * distance) / sigma2);
+		//std::cout << i << ":" << kernel[i] << ",";
 	}
+	//std::cout << std::endl;
 }
