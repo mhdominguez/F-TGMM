@@ -53,7 +53,7 @@ void parseImageFilePattern(string& imgRawPath, int frame);
 int getKernelRadiusForSigma(float sigma);
 
 template<class imgType>
-void subtractImages(const int nDim, imgType* im1,const int* imDim,imgType* im2, float weightBlurredImageSubtract);
+void subtractImages(const int nDim, imgType* im1,const int* imDim,imgType* im2, float weightBlurredImageSubtract, imgType useBlurredImageForBackgroundDetection);
 
 template<class imgType>
 void z_convolve_and_subtractImages(const int nDim, imgType* im1, const int* imDim, imgType* im2, int kradius, float sigmaGaussianBlur, float weightBlurredImageSubtract);
@@ -139,6 +139,7 @@ int main( int argc, const char** argv )
 	int backgroundThr = 0;
 	int conn3D = 0;
 	float anisotropyZ = 1;//
+	bool useBlurredImageForBackgroundDetection = false;
 
 	if( argc == 3 ) //we call program wiht <configFile> <timePoint>
 	{
@@ -171,6 +172,7 @@ int main( int argc, const char** argv )
 		
 		sigmaGaussianBlur = configOptions.sigmaGaussianBlur;
 		weightBlurredImageSubtract = configOptions.weightBlurredImageSubtract;
+		useBlurredImageForBackgroundDetection = configOptions.useBlurredImageForBackgroundDetection;
 
 	}else if( argc == 6)
 	{
@@ -409,21 +411,25 @@ int main( int argc, const char** argv )
 			//old code for z convolution: single-threaded, using mylib -- very slow, but faster than single-threaded C++
 			mylib::Double_Vector *z_kernel = mylib::Gaussian_Filter((double)sigmaGaussianBlur,kradius);
 			
-			if ( weightBlurredImageSubtract < 0.95 || weightBlurredImageSubtract > 1.05 ) //if scaling down the blurred image before subtract, save time by scaling down z kernel and applying that to the 3rd dimension
+			if ( !(useBlurredImageForBackgroundDetection) ) //if using the blurred image to detect background (i.e. where pixel values are less than backgroundThreshold in the blurred image)
 			{
-				mylib::Scale_Array( z_kernel, weightBlurredImageSubtract, 0 );
-				weightBlurredImageSubtract = 1.0f; //reset so we don't have to multiply again within subtractImages
+				if ( weightBlurredImageSubtract < 0.95 || weightBlurredImageSubtract > 1.05 ) //if scaling down the blurred image before subtract, save time by scaling down z kernel and applying that to the 3rd dimension
+				{
+					mylib::Scale_Array( z_kernel, weightBlurredImageSubtract, 0 );
+					weightBlurredImageSubtract = 1.0f; //reset so we don't have to multiply again within subtractImages
+				}
+				
 			}
+			
 			mylib::Filter_Dimension(img_blurred,z_kernel,2);
-
 			//writeArrayToKLB("gaussian_blurred_3d.klb",img_blurred); // DEBUG
 			
 			//perform subtraction
-			subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data), 1.0f );
+			subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data), weightBlurredImageSubtract, (useBlurredImageForBackgroundDetection ? (imgVoxelType)backgroundThr : (imgVoxelType)0.0 ) );
 		}
 		else if ( img->ndims == 2 ) //2D, so do weighting step there
 		{
-			subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data), weightBlurredImageSubtract );
+			subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data), weightBlurredImageSubtract, (useBlurredImageForBackgroundDetection ? (imgVoxelType)backgroundThr : (imgVoxelType)0.0 ) );
 		}
 		
 		//writeArrayToKLB("gaussian_blur_subtracted.klb",img); //DEBUG
@@ -631,18 +637,37 @@ int getKernelRadiusForSigma(float sigma) {
 
 //===============================================
 template<class imgType>
-void subtractImages(const int nDim, imgType* im1, const int* imDim, imgType* im2, float weightBlurredImageSubtract)
+void subtractImages(const int nDim, imgType* im1, const int* imDim, imgType* im2, float weightBlurredImageSubtract, imgType useBlurredImageForBackgroundDetection )
 {
 	uint64_t sliceSize = imDim[0];
 	for (int ii = 1; ii < nDim; ii++)
 		sliceSize *= imDim[ii];
 	
-	if ( weightBlurredImageSubtract < 0.95 || weightBlurredImageSubtract > 1.05 )
+	//excessive braching and duplication of code here to optimize so that looping only takes place twice, not three times
+	if ( useBlurredImageForBackgroundDetection > 0 )
+	{	
+		if ( weightBlurredImageSubtract < 0.95 || weightBlurredImageSubtract > 1.05 )
+		{
+			for ( uint64_t ii = 0; ii<sliceSize; ii++)
+			{	if( im2[ii] < useBlurredImageForBackgroundDetection )
+					im1[ii] = 0;
+				im2[ii] *= weightBlurredImageSubtract;
+			}
+		}
+		else
+		{
+			for ( uint64_t ii = 0; ii<sliceSize; ii++)
+				if( im2[ii] < useBlurredImageForBackgroundDetection )
+					im1[ii] = 0;
+		}			
+	}
+	else if ( weightBlurredImageSubtract < 0.95 || weightBlurredImageSubtract > 1.05 )
 	{
 		for ( uint64_t ii = 0; ii<sliceSize; ii++)
 			im2[ii] *= weightBlurredImageSubtract;
 	}
 	
+	//okay, actually do subtraction here
 	for ( uint64_t ii = 0; ii<sliceSize; ii++)
 		if( im2[ii] >= im1[ii] )
 			im1[ii] = 0;
@@ -651,12 +676,13 @@ void subtractImages(const int nDim, imgType* im1, const int* imDim, imgType* im2
 }
 
 //declare all the possible types so template compiles properly
-template void subtractImages<unsigned char>(const int nDim, unsigned char* im1, const  int* imDim, unsigned char* im2, float weightBlurredImageSubtract);
-template void subtractImages<unsigned short int>(const int nDim, unsigned short int* im1, const  int* imDim, unsigned short int* im2, float weightBlurredImageSubtract);
-template void subtractImages<float>(const int nDim, float* im1, const int* imDim, float* im2, float weightBlurredImageSubtract);
+template void subtractImages<unsigned char>(const int nDim, unsigned char* im1, const  int* imDim, unsigned char* im2, float weightBlurredImageSubtract, unsigned char useBlurredImageForBackgroundDetection);
+template void subtractImages<unsigned short int>(const int nDim, unsigned short int* im1, const  int* imDim, unsigned short int* im2, float weightBlurredImageSubtract, unsigned short int useBlurredImageForBackgroundDetection);
+template void subtractImages<float>(const int nDim, float* im1, const int* imDim, float* im2, float weightBlurredImageSubtract, float useBlurredImageForBackgroundDetection);
 
 
-
+//---------------------------------------------------
+//z_convolve_and_subtractImages -- this function convolves in z on im2 and subtract from im1 in one loop, storing result in im1; however, it is much slower than using mylib
 template<class imgType>
 void z_convolve_and_subtractImages(const int nDim, imgType* im1, const int* imDim, imgType* im2, int kradius, float sigmaGaussianBlur, float weightBlurredImageSubtract)
 {
