@@ -205,7 +205,7 @@ int configOptionsTrackingGaussianMixture::parseConfigFileTrackingGaussianMixture
 				};
 				cellDivisionClassifier.method=kinds.at(token[1]);
 			} catch(...) {
-				cout <<"ERROR: cellDivisionClassifierMethod must be None, AmatF2013 or LUT2018." 
+				cout <<"ERROR: cellDivisionClassifierMethod must be None, AmatF2013, LUT2018, or DominguezM2021." 
 				     << "\tGot: " << token[1] << endl;
 				return 1;
 			}
