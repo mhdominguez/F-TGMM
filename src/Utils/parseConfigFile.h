@@ -73,7 +73,7 @@ struct configOptionsTrackingGaussianMixture
 	int		radiusMedianFilter{};
 	float	sigmaGaussianBlur{};
 	float	weightBlurredImageSubtract{};
-	bool useBlurredImageForBackgroundDetection;
+	float useBlurredImageForBackgroundDetection;
 	int useMedianFilterForTracking{};
 	float	minTau{};
 	float	backgroundThreshold{};
@@ -191,9 +191,9 @@ struct configOptionsTrackingGaussianMixture
 
 		//elements for watershed segmentation
 		radiusMedianFilter = 2;
-		sigmaGaussianBlur = 20.0f;
-		weightBlurredImageSubtract = 1.0f;
-		useBlurredImageForBackgroundDetection = true;
+		sigmaGaussianBlur = 16.0f;
+		weightBlurredImageSubtract = 0.5f;
+		useBlurredImageForBackgroundDetection = 0.5f;
 		useMedianFilterForTracking = 0;
 		minTau = 2;
 		backgroundThreshold = -1e32f;

@@ -139,7 +139,7 @@ int main( int argc, const char** argv )
 	int backgroundThr = 0;
 	int conn3D = 0;
 	float anisotropyZ = 1;//
-	bool useBlurredImageForBackgroundDetection = false;
+	float useBlurredImageForBackgroundDetection = 0;
 
 	if( argc == 3 ) //we call program wiht <configFile> <timePoint>
 	{
@@ -425,11 +425,11 @@ int main( int argc, const char** argv )
 			//writeArrayToKLB("gaussian_blurred_3d.klb",img_blurred); // DEBUG
 			
 			//perform subtraction
-			subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data), weightBlurredImageSubtract, (useBlurredImageForBackgroundDetection ? (imgVoxelType)backgroundThr : (imgVoxelType)0.0 ) );
+			subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data), weightBlurredImageSubtract, (imgVoxelType)(useBlurredImageForBackgroundDetection * (float)backgroundThr) );
 		}
 		else if ( img->ndims == 2 ) //2D, so do weighting step there
 		{
-			subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data), weightBlurredImageSubtract, (useBlurredImageForBackgroundDetection ? (imgVoxelType)backgroundThr : (imgVoxelType)0.0 ) );
+			subtractImages( img->ndims, (imgVoxelType*)(img->data), img->dims, (imgVoxelType*)(img_blurred->data), weightBlurredImageSubtract, (imgVoxelType)(useBlurredImageForBackgroundDetection * (float)backgroundThr) );
 		}
 		
 		//writeArrayToKLB("gaussian_blur_subtracted.klb",img); //DEBUG

@@ -145,7 +145,7 @@ int configOptionsTrackingGaussianMixture::parseConfigFileTrackingGaussianMixture
 			weightBlurredImageSubtract = atof(token[1]);			
 		}else if (strcmp("useBlurredImageForBackgroundDetection", token[0]) == 0)
 		{
-			useBlurredImageForBackgroundDetection = atoi(token[1]);
+			useBlurredImageForBackgroundDetection = atof(token[1]);
 		}else if (strcmp("useMedianFilterForTracking", token[0]) == 0)
 		{
 			useMedianFilterForTracking = atoi(token[1]);
