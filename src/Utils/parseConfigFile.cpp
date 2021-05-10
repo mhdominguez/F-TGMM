@@ -327,6 +327,11 @@ void configOptionsTrackingGaussianMixture::printConfigFileTrackingGaussianMixtur
 	outLog << "useMedianFilterForTracking = " << useMedianFilterForTracking << endl;
 	outLog<<"minTau ="<<minTau<<endl;
 	outLog<<"backgroundThreshold ="<<backgroundThreshold<<endl;
+	outLog<<"sigmaGaussianBlurBackground="<<sigmaGaussianBlur<<endl;
+	
+	outLog<<"weightBlurredImageSubtract="<<weightBlurredImageSubtract<<endl;
+	outLog<<"useBlurredImageForBackgroundDetection="<<useBlurredImageForBackgroundDetection<<endl;
+	
 	outLog<<"conn3D ="<<conn3D<<endl;
 
 	outLog<<"regularizePrecisionMatrixConstants_lambdaMin = "<<lambdaMin<<endl;

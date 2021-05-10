@@ -434,8 +434,14 @@ static void DebugFindZeroTreeNodePtrAddr ( int frame, int frameOffset, lineageHy
 				if (aux->left != NULL)
 					cout << "    left " << (void *)(aux->left) << "/" << (void *)(aux->left->data->treeNodePtr) << " at frame " << aux->left->data->TM << "." << endl;
 				if (aux->right != NULL)
-					cout << "    right " << (void *)(aux->right) << "/" << (void *)(aux->right->data->treeNodePtr) << " at frame " << aux->right->data->TM << "." << endl;				
+					cout << "    right " << (void *)(aux->right) << "/" << (void *)(aux->right->data->treeNodePtr) << " at frame " << aux->right->data->TM << "." << endl;
 			}
+			/*else
+			{
+				cout << "  ...normal treeNodePtr at " << (void *)(aux) << "/" << (void *)(aux->data->treeNodePtr) << " at frame " << i << "/" << aux->data->TM << "..." << endl;
+				if (aux->parent != NULL)
+					cout << "    parent " << (void *)(aux->parent) << "/" << (void *)(aux->parent->data->treeNodePtr) << " at frame " << aux->parent->data->TM << "." << endl;
+			}*/
 		}
 	}
 }
@@ -476,6 +482,7 @@ static long long GenerateSegmentationAtSpecificTau(mylib::Array *img,hierarchica
         vector<int> eraseIdx;
         eraseIdx.reserve(hs->currentSegmentatioSupervoxel.size() / 10);
         int numSplits = 0;
+		cout << "Getting ready to trim..." << endl;
         for (size_t ii = 0; ii < hs->currentSegmentatioSupervoxel.size(); ii++) {
             thr = hs->currentSegmentatioSupervoxel[ii].trimSupervoxel<mylib::uint16>(imgDataUINT16);//trimmming supervoxels
 
@@ -540,6 +547,7 @@ static long long GenerateSegmentationAtSpecificTau(mylib::Array *img,hierarchica
             cout << "ERROR: we are going to delete all the supervoxels!!!" << endl;
             exit(5);
         }
+        cout << "Finished trimming..." << endl;
         size_t auxSize = hs->currentSegmentatioSupervoxel.size();
         hs->eraseSupervoxelFromCurrentSegmentation(eraseIdx);
         cout << "Deleted " << eraseIdx.size() << " supervoxels out of " << auxSize << " for being of size<" << minNucleiSize << " after trimming. Left " << hs->currentSegmentatioSupervoxel.size() << endl;
@@ -1745,7 +1753,8 @@ int main( int argc, const char** argv )
                 TIME(recalculateCentroidForMotherAndTwoDaughters(regularize_W4DOF, lht, scaleOrig, time_series_map, TMaux));
 
                 // At this point we're done with the procesed float data from the previous frame, so flush it here.
-                time_series_map.flush(frame - 1);
+                //frame < iniFrame + 2 * configOptions.temporalWindowRadiusForLogicalRules
+                //time_series_map.flush(frame - 1);
 
                 //analyze cell divisions and cut links in the ones that do not satisfy the midplane division constraint
                 int numCorrectionsD, numSplitsD;
@@ -1773,7 +1782,7 @@ int main( int argc, const char** argv )
             //parameters for logical temporal rules corrections (TODO: I should add them to some advance panel options later)
 			if (frame >= iniFrame + 2 * configOptions.temporalWindowRadiusForLogicalRules) // frame is out of the initial window period
 			{
-				//DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame-1, lht );
+				DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame-1, lht );
 				
 				int numCorrections, numSplits;
 
@@ -1788,6 +1797,8 @@ int main( int argc, const char** argv )
 					cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death before " << lengthTMthr << " time points after cell division" << endl;
 
 #endif
+					DebugFindZeroTreeNodePtrAddr( frame - 1, frame, lht );
+					
 					float *im = time_series_map.getProcessed(frame);
 					extendDeadNucleiAtTMwithHS(lht, hs, frame - 1, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
 					cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells in frame " << frame - 1 << " using a simple local Hungarian algorithm with supervoxels" << endl;
@@ -1887,10 +1898,10 @@ int main( int argc, const char** argv )
 						DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
 						
 						//since bad divisions at frameOffset are now broken (had been left un-broken until this point), re-run the dead cell extender to those timepoints
-						extendDeadNucleiAtTMwithHS(lht, hs, frameOffset, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
+						extendDeadNucleiAtTMwithHS(lht, hsVec[configOptions.temporalWindowRadiusForLogicalRules+1], frameOffset, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
 						cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells in frame " << frameOffset << " using a simple local Hungarian algorithm with supervoxels" << endl;
 						
-						DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						//DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
 						
 						if (lengthTMthr > 0)
 						{
@@ -2119,6 +2130,16 @@ int main( int argc, const char** argv )
             hsVec.erase(hsVec.begin());
         }
         //-----------------------------------------------------
+        
+        
+        //DEBUG: assess if any time_series_map items remain cached, and flush
+        for (int frame = iniFrame; frame <= endFrame; frame++) {
+            if(time_series_map.is_cached(frame))
+			{    
+				cout << "DEBUG: needing to release frame " << frame << " from time_series_map cache" << endl;
+				time_series_map.flush(frame);				
+			}
+		}
 
 
 

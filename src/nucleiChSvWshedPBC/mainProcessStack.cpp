@@ -353,20 +353,19 @@ int main( int argc, const char** argv )
 			return 10;
 		}
 	}
-
-
+	
 	//calculate median filter
 	time(&start);
 #ifndef DO_NOT_USE_CUDA
 	medianFilterCUDASliceBySlice((imgVoxelType*) (img->data), img->dims, radiusMedianFilter,devCUDA);
 #else
 	medianFilter2DSliceBySlice((imgVoxelType*)(img->data), img->dims, radiusMedianFilter);
-
 #endif
 	time(&end);
     //writeArrayToKLB("median.klb",img);
-	cout << "Median filtering complete in " << difftime(end,start) << " secs " << endl; // mylib::SUB_OP << endl;
-	//compute Gaussian blur for more sophisticated background subtraction
+	cout << "Median filtering complete in " << difftime(end,start) << " secs " << endl; // mylib::SUB_OP << endl;		
+
+	//compute Gaussian blur for more complex + and - background subtraction
 	if ( sigmaGaussianBlur > 5 && weightBlurredImageSubtract > 0 )
 	{
 		//perform Gaussian Blur then subtract from median filtered image
@@ -438,7 +437,7 @@ int main( int argc, const char** argv )
 		time(&end);
 		cout << "Gaussian blur z (if applicable) and background subtraction complete in " << difftime(end,start) << " secs" << endl; 
 	}
-
+	
 	//build hierarchical tree
 	//cout<<"DEBUGGING: building hierarchical tree"<<endl;
 	int64 imgDims[dimsImage];

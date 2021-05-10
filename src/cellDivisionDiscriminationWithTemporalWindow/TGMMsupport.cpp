@@ -82,7 +82,7 @@ int cellDivisionTemporalWindow_TGMMsupport::setClassifierModel(string filename)
 int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(lineageHyperTree& lht, int frame, vector<mylib::Array*>& imgVec, int devCUDA, double thrCellDivisionPlaneDistance, float* im_zero, float* im_plus_one, bool regularize_W4DOF, float scaleOrig[3] )
 
 {
-	//cout << "===========================DEBUGGING classifyCellDivisionTemporalWindow, TM: " << frame << "====================" << endl;
+	cout << "===========================DEBUGGING classifyCellDivisionTemporalWindow, TM: " << frame << "====================" << endl;
 	//this functions follows mainCellDivisionClassifierWithTemporalWindow::mainSingleWindowForDaughters( int argc, const char** argv )
 	basicEllipticalHaarFeatureVector::useDoGfeatures = true;
 	cellDivisionWithTemporalWindow::setUseFixPrecisionMatrix(true);
@@ -168,7 +168,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 			divisionNodes.push_back(auxD);			
 			//cout << "auxD: " ;
 			
-			//cout<<"   DEBUG: TGMMsupport at frame " << frame << ", just broke " << (void *)(auxD) << " from mother " << (void *)(aux) << endl;
+			cout<<"   DEBUG: TGMMsupport at frame " << frame << ", just broke " << (void *)(auxD) << " from mother " << (void *)(aux) << endl;
 		}
 	}
 	
@@ -415,8 +415,8 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 		imgVec.resize(2 * cellDivisionWithTemporalWindow::getTemporalWindowRadius() + 1, NULL);//we initialize to null so the code should get the information from superovxels
 	//printf("imgVec.size() is %lu, getTemporalWindowRadius is %d \n", imgVec.size(), cellDivisionWithTemporalWindow::getTemporalWindowRadius() );
 	//cout << "   imgVec.size() is " << imgVec.size() << ", getTemporalWindowRadius is " << cellDivisionWithTemporalWindow::getTemporalWindowRadius() << endl;
-	//cout << "   daughterNodes.size() is " << daughterNodes.size() << ", parentNodes.size() is " << daughterNodes.size() << endl;
-	//cout << "   nucleiList->size() is " << nucleiList->size() << ", nucleiList_minus_1->size() is " << nucleiList_minus_1->size() << endl;	
+	cout << "   daughterNodes.size() is " << daughterNodes.size() << ", parentNodes.size() is " << daughterNodes.size() << endl;
+	cout << "   nucleiList->size() is " << nucleiList->size() << ", nucleiList_minus_1->size() is " << nucleiList_minus_1->size() << endl;	
 	cellDivisionWithTemporalWindow::calculateBasicEllipticalHaarFeaturesBatchForCellDivisionSingleWindowForDaughters(daughterNodes, parentNodes, imgVec, cdwtVec, devCUDA, 0);
 
 
@@ -563,7 +563,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 			iterL2->debugPrintLineage();
 			//lineageHyperTree::debugPrintLineage(iterL2);
 			*/
-			//cout<<"   DEBUG: TGMMsupport at frame " << frame << ": division parent " << (void *)(iterF->cellDivisionPtr) << ", new attached child " << (void *)(iterF->cellDivisionDaughterPtr) << " with " << iterF->cellDivisionPtr->getNumChildren() << " total siblings." << endl;
+			cout<<"   DEBUG: TGMMsupport at frame " << frame << ": division parent " << (void *)(iterF->cellDivisionPtr) << ", new attached child " << (void *)(iterF->cellDivisionDaughterPtr) << " with " << iterF->cellDivisionPtr->getNumChildren() << " total siblings." << endl;
 			
 			numTrueCellDivisions++;
 		}else{//false cell division -> daughter starts a new lineage
