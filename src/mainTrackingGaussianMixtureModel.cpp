@@ -482,7 +482,7 @@ static long long GenerateSegmentationAtSpecificTau(mylib::Array *img,hierarchica
         vector<int> eraseIdx;
         eraseIdx.reserve(hs->currentSegmentatioSupervoxel.size() / 10);
         int numSplits = 0;
-		cout << "Getting ready to trim..." << endl;
+		//cout << "Getting ready to trim..." << endl;
         for (size_t ii = 0; ii < hs->currentSegmentatioSupervoxel.size(); ii++) {
             thr = hs->currentSegmentatioSupervoxel[ii].trimSupervoxel<mylib::uint16>(imgDataUINT16);//trimmming supervoxels
 
@@ -547,7 +547,7 @@ static long long GenerateSegmentationAtSpecificTau(mylib::Array *img,hierarchica
             cout << "ERROR: we are going to delete all the supervoxels!!!" << endl;
             exit(5);
         }
-        cout << "Finished trimming..." << endl;
+        //cout << "Finished trimming..." << endl;
         size_t auxSize = hs->currentSegmentatioSupervoxel.size();
         hs->eraseSupervoxelFromCurrentSegmentation(eraseIdx);
         cout << "Deleted " << eraseIdx.size() << " supervoxels out of " << auxSize << " for being of size<" << minNucleiSize << " after trimming. Left " << hs->currentSegmentatioSupervoxel.size() << endl;

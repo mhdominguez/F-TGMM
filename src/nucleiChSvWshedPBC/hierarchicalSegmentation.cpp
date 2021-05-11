@@ -267,7 +267,7 @@ int hierarchicalSegmentation::segmentationAtTau(imgVoxelType tau)
 	int err = segmentationNodesAtTau(tau);
 	if( err > 0 )
 		return err;
-	cout<< "   ...finished segmentationNodesAtTau for " << (float)tau << endl;
+	//cout<< "   ...finished segmentationNodesAtTau for " << (float)tau << endl;
 
 	/*
 	//reserve allways a little bit more space in case we add some splits afterwards (we do not want to dynamically reallocate too much if we are keeping pointers)
