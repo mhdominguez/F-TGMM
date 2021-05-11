@@ -1782,7 +1782,7 @@ int main( int argc, const char** argv )
             //parameters for logical temporal rules corrections (TODO: I should add them to some advance panel options later)
 			if (frame >= iniFrame + 2 * configOptions.temporalWindowRadiusForLogicalRules) // frame is out of the initial window period
 			{
-				DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame-1, lht );
+				//DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame-1, lht );
 				
 				int numCorrections, numSplits;
 
@@ -1797,7 +1797,7 @@ int main( int argc, const char** argv )
 					cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death before " << lengthTMthr << " time points after cell division" << endl;
 
 #endif
-					DebugFindZeroTreeNodePtrAddr( frame - 1, frame, lht );
+					//DebugFindZeroTreeNodePtrAddr( frame - 1, frame, lht );
 					
 					float *im = time_series_map.getProcessed(frame);
 					extendDeadNucleiAtTMwithHS(lht, hs, frame - 1, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
@@ -1895,7 +1895,7 @@ int main( int argc, const char** argv )
 						//	cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death at frame " << frame - lengthTMthr << " time points after cell division" << endl;
 						//}
 					
-						DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						//DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
 						
 						//since bad divisions at frameOffset are now broken (had been left un-broken until this point), re-run the dead cell extender to those timepoints
 						extendDeadNucleiAtTMwithHS(lht, hsVec[configOptions.temporalWindowRadiusForLogicalRules+1], frameOffset, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
@@ -2012,9 +2012,14 @@ int main( int argc, const char** argv )
                 //delete hierarchical segmentation for this time point
                 TIME(delete hsVec.front());
                 TIME(hsVec.erase(hsVec.begin()));
+				
+				time_series_map.flush(frameOffset);
+				
+				if(time_series_map.is_cached(frameOffset))
+					time_series_map.flush(frameOffset);
             }
             
-            DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame, lht );
+            //DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame, lht );
 			
             cout << "Applying all the temporal logical rules took " << toc(&ttTemporalLogicalRules) << " secs" << endl;
 			cout<<"******************************************************************************"<<endl;
@@ -2128,6 +2133,9 @@ int main( int argc, const char** argv )
             //delete hierarchical segmentation for this time point
             delete hsVec.front();
             hsVec.erase(hsVec.begin());
+			
+			if(time_series_map.is_cached(frame))
+				time_series_map.flush(frame);				
         }
         //-----------------------------------------------------
         

@@ -1027,7 +1027,7 @@ basicEllipticalHaarFeatureVector** calculateEllipticalHaarFeatures(const double 
 
 	size_t freeGPUmem = 0, totalGPUmem = 0;
 	HANDLE_ERROR( cudaMemGetInfo( &freeGPUmem, &totalGPUmem) ); 
-	freeGPUmem -= 3.5 * 104857600;//We leave 350MB as a safety margin 
+	freeGPUmem -= 3 * 104857600;//We leave 300MB as a safety margin 
 
 	//calculate total memory needed in the GPU
 	long long int imSize = dims[0];
