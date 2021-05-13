@@ -1754,7 +1754,9 @@ int main( int argc, const char** argv )
 
                 // At this point we're done with the procesed float data from the previous frame, so flush it here.
                 //frame < iniFrame + 2 * configOptions.temporalWindowRadiusForLogicalRules
-                //time_series_map.flush(frame - 1);
+                
+                if ( !(configOptions.cellDivisionClassifier.Amatf2013.use_2021_code) ) 
+                    time_series_map.flush(frame - 1);
 
                 //analyze cell divisions and cut links in the ones that do not satisfy the midplane division constraint
                 int numCorrectionsD, numSplitsD;
