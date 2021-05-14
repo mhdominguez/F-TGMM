@@ -30,7 +30,7 @@
 #include "variationalInference.h"
 #include "external/xmlParser2/xmlParser.h"
 #include "Utils/parseConfigFile.h"
-#include "external/Nathan/tictoc.h"
+
 #include "sys/stat.h"
 #include "UtilsCUDA/GMEMupdateCUDA.h"
 #include "constants.h"
@@ -62,6 +62,7 @@
 #include <UtilsCUDA/external/book.h>
 
 #if defined(_WIN32) || defined(_WIN64)
+#include "external/Nathan/tictoc.h"
 #define NOMINMAX
 #include <Windows.h>
 #include <Psapi.h> // for checking memory usage
@@ -83,7 +84,8 @@
 #else //Linux
 //#define TIME(e) do{time_t start = time(NULL);(e);printf("Elapsed %6.0f sec for %s\n",difftime(time(NULL),start),#e);}while(0)
 //#define TIME(e) do{clock_t start = clock();(e);printf("Elapsed %6.0f sec for %s\n",(clock() - start) / (CLOCKS_PER_SEC / 1000),#e);}while(0)
-#define TIME(e) do{clock_t c_start = clock();time_t t_start = time(NULL);(e);double t_diff = difftime(time(NULL),t_start);if ( t_diff > 1 ) { printf("Elapsed %6.0f sec for %s\n",difftime(time(NULL),t_start),#e); } else { double diff = (clock() - c_start) / (CLOCKS_PER_SEC / 1000); printf("Elapsed %6.2f sec for %s\n",diff,#e); }}while(0)
+//#define TIME(e) do{clock_t c_start = clock();time_t t_start = time(NULL);(e);double t_diff = difftime(time(NULL),t_start);if ( t_diff > 1 ) { printf("Elapsed %6.0f sec for %s\n",difftime(time(NULL),t_start),#e); } else { double diff = (clock() - c_start) / (CLOCKS_PER_SEC / 1000); printf("Elapsed %6.2f sec for %s\n",diff,#e); }}while(0)
+#define TIME(e) do{time_t t_start = time(NULL);(e);double t_diff = difftime(time(NULL),t_start);if ( t_diff > 1 ) { printf("Elapsed %6.0f sec for %s\n",t_diff,#e); } }while(0)
 #endif
 
 
@@ -468,8 +470,12 @@ static long long GenerateSegmentationAtSpecificTau(mylib::Array *img,hierarchica
     const int minNucleiSize = configOptions.minNucleiSize;
         //generate segmentation mask at specific tau
         cout << "Generating segmentation mask from HS (trimming supervoxels)." << endl;
-        TicTocTimer ttHS = tic();
-
+#if defined(_WIN32) || defined(_WIN64)
+		TicTocTimer ttHS = tic();
+#else //Linux        
+		time_t t_start = time(NULL);
+#endif
+		
         mylib::uint16* imgDataUINT16 = (mylib::uint16*) (img->data);
         hs->segmentationAtTau(configOptions.tau);
 
@@ -568,8 +574,11 @@ static long long GenerateSegmentationAtSpecificTau(mylib::Array *img,hierarchica
 
         delete[] neighOffsetSv;
         delete[] imgVisited;
+#if defined(_WIN32) || defined(_WIN64)		
         cout << "Parsing " << hs->currentSegmentatioSupervoxel.size() << " supervoxels from HS took " << toc(&ttHS) << " secs" << endl;
-
+#else
+		cout << "Parsing " << hs->currentSegmentatioSupervoxel.size() << " supervoxels from HS took " << difftime(time(NULL),t_start) << " secs" << endl;
+#endif
         return query_nb;
 }
 
@@ -1184,9 +1193,16 @@ static void parse_options(int* argc,const char** argv) {
 
 
 struct stat_time_acc_t{ float t,n; stat_time_acc_t():t(0),n(0){} void add(float x){ t+=x;n++; } float avg() const{ return t/n; } };
+
+#if defined(_WIN32) || defined(_WIN64)
 #define STATTIME_INIT map<string,stat_time_acc_t> stattimes
 #define STATTIME(expr) do{ TicTocTimer t=tic(); (expr); stattimes[#expr].add(toc(&t)); }while(0)
 #define STATTIME_READ do{ for(auto const &it: stattimes) {cout << "\tTotal Elapsed: " << it.second.t << "s for " << it.first << endl ;} }while(0)
+#else //Linux
+#define STATTIME_INIT
+#define STATTIME(expr) do{(expr);}while(0)
+#define STATTIME_READ
+#endif
 
 void recalculateThrDist2LargeDisplacement(int iniFrame, lineageHyperTree& lht, float& thrDist2LargeDisplacement, int frame)
 {
@@ -1429,7 +1445,7 @@ int main( int argc, const char** argv )
         mylib::Array* imgFlowMask = NULL;//uint8 containing areas where we need flow estimation
         mylib::uint8* imgFlowMaskPtr = NULL;
 
-
+        time_t frame_start;
         vector<hierarchicalSegmentation*> hsVec;//stores hierarchical segmentation for frames in the temporal window
         hsVec.reserve(configOptions.temporalWindowRadiusForLogicalRules*2);//it shoudl match teh temporal window size
 
@@ -1438,7 +1454,11 @@ int main( int argc, const char** argv )
 
 		TimeSeriesMap time_series_map(&configOptions, iniFrame);
         for (int frame = iniFrame; frame <= endFrame; frame++){
-            TicTocTimer tt = tic();
+#if defined(_WIN32) || defined(_WIN64)
+			TicTocTimer tt = tic();
+#else
+			time_t start_frame = time(NULL);
+#endif
             cout << "Processing frame " << frame << endl;
             //==============================================================
             //read image
@@ -1553,7 +1573,7 @@ int main( int argc, const char** argv )
 
 
             cout << "Calculating nearest neighbors for supervoxels" << endl;
-            TicTocTimer ttKNN = tic();
+            //TicTocTimer ttKNN = tic();
             int err;
             if (frame > 0)
             {
@@ -1565,7 +1585,7 @@ int main( int argc, const char** argv )
             err = lht.supervoxelNearestNeighborsInSpace(frame, configOptions.KmaxNumNNsupervoxel, configOptions.KmaxDistKNNsupervoxel, devCUDA);
             if (err > 0) return err;
 
-            cout << "Nearest neighbors took " << toc(&ttKNN) << " secs" << endl;
+            //cout << "Nearest neighbors took " << toc(&ttKNN) << " secs" << endl;
             //-----------------------------------------------------------------------
 
             //--------------------------------------------------------------
@@ -1723,7 +1743,7 @@ int main( int argc, const char** argv )
         //---------------------------------------------------------------------------------------------------
         //-------------incorporate temporal logical rules in a time window to improve results----------------
 			cout<<"******************************************************************************"<<endl;
-            TicTocTimer ttTemporalLogicalRules = tic();
+            //TicTocTimer ttTemporalLogicalRules = tic();
 
             //-----update lineage hyper tree with the final GMM results from this frame-----------------------
             TIME(UpdateLineageHyperTree(regularize_W4DOF, iniFrame, lht, vecGM, scaleOrig, frame, time_series_map.getProcessed(frame)));
@@ -2023,7 +2043,7 @@ int main( int argc, const char** argv )
             
             //DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame, lht );
 			
-            cout << "Applying all the temporal logical rules took " << toc(&ttTemporalLogicalRules) << " secs" << endl;
+            //cout << "Applying all the temporal logical rules took " << toc(&ttTemporalLogicalRules) << " secs" << endl;
 			cout<<"******************************************************************************"<<endl;
             //--------------end of temporal logical rules--------------------------------------------------
             //---------------------------------------------------------------------------------------------
@@ -2057,7 +2077,11 @@ int main( int argc, const char** argv )
                 delete[]centroidLabelWeightHOST;
                 delete[]labelListPtrHOST;
 			}
+#if defined(_WIN32) || defined(_WIN64)
             cout << toc(&tt) << " secs" << endl;
+#else //Linux
+            cout << "Frame " << frame << " took " << difftime(time(NULL),start_frame) << " secs" << endl;
+#endif
 			
 			/*DEBUG -- detect potential memory leaks
 			HANDLE_ERROR( cudaSetDevice( devCUDA ) );
@@ -2167,13 +2191,13 @@ int main( int argc, const char** argv )
         //run background "cleaner"
         if (configOptions.thrBackgroundDetectorHigh < 1.0f)
         {
-            TicTocTimer tt = tic();
+            //TicTocTimer tt = tic();
             cout << "Running forward-backward pass with hysteresis threshold background =(" << configOptions.thrBackgroundDetectorLow << "," << configOptions.thrBackgroundDetectorHigh << ")" << " to remove non-cell like objects" << endl;
 
             string outputFolder(debugPath + "XML_finalResult_lht_bckgRm");
             mkdir(outputFolder);
             int err = applyProbBackgroundHysteresisRulePerBranch(string(debugPath + "XML_finalResult_lht/GMEMfinalResult_frame"), iniFrame, endFrame, string(outputFolder + "/"), configOptions.thrBackgroundDetectorLow, configOptions.thrBackgroundDetectorHigh);
-            cout << toc(&tt) << " secs" << endl;
+            //cout << toc(&tt) << " secs" << endl;
             if (err > 0)
                 return err;
         }
