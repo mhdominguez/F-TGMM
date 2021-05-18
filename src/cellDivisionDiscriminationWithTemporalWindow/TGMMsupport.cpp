@@ -464,7 +464,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 		auxD = iterF->cellDivisionDaughterPtr;
 		//cout << " cellDivisionWithTemporalWindow point E3." <<endl;
 		//feature Fx = [3];
-		Fx_max = 0;
+		Fx_max = -1;
 		iFc = 0; //counter for trio candidates
 		iter_this_max = 0;
 		
@@ -488,31 +488,89 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 		
 			Fx[iFc]=-1; //re-initialize
 			
-			if ( iterF->cellDivisionPtr == NULL || iterF->cellDivisionDaughterPtr == NULL ) //|| iterF->cellDivisionPtr->left == NULL ) 
+			if ( iterF->cellDivisionPtr == NULL || iterF->cellDivisionDaughterPtr == NULL || iterF->cellDivisionDaughterPtr->parent != NULL ) //race condition with daugther fighting over different parents is prevented by loading cdwtVec as grouped by daughters
 			{	
 				++iterF;
 				iFc++;
 				continue;
 			}
 			//cout << " cellDivisionWithTemporalWindow point E4b." << endl;
-			if ( iterF->cellDivisionPtr->getNumChildren() > 1 || iterF->cellDivisionDaughterPtr->parent != NULL ) //test cellDivisionPtr already have two children and cellDivisionDaughterPtr already have parent
-			{	
-				//cout << " cellDivisionWithTemporalWindow point E4c." << endl;
-				++iterF;
-				iFc++;
-				continue;
-			}
-			//cout << " cellDivisionWithTemporalWindow point E5." <<endl;
 			iterF->f.reserve(numFeatures);
-			//iterF->calculateFeaturesSingleWindowForDaughters();
-			iterF->calculateFeaturesSingleWindowForDaughters_featureSelection_v1_2021();						
-			//record for next iteration to reserve appropriate ammount of memory
-			numFeatures = iterF->f.size();
-	
-			//call classifier to make the decision
-			boostingTreeClassifierTranspose(&(iterF->f[0]),&Fx[iFc] ,classifierCDWT , 1, numFeatures);
-			iterF->cellDivisionPtr->data->probCellDivision = Fx[iFc];//store result for cell division GUI (active learning) and debugging
 			
+			if ( iterF->cellDivisionPtr->getNumChildren() > 1 ) //test cellDivisionPtr already have two children
+			{	
+				//if not writing CDTWfeatures, don't allow race condition between prospective daughters fighting over the same parent; 
+				if (writeCDWTfeatures() ) 
+				{
+					//allow race condition to possibly affect results, but we don't care since in training mode
+					++iterF;
+					iFc++;
+					continue;
+				} else { //recover the Fx (ML classifier score) for the already-attached daugther, then detach if its score is lower than this one -- same code as below, but with score testing and detachment code
+					
+					iterF->calculateFeaturesSingleWindowForDaughters_featureSelection_v1_2021();
+					//record for next iteration to reserve appropriate ammount of memory
+					numFeatures = iterF->f.size();
+					
+					//call classifier to make the decision
+					boostingTreeClassifierTranspose(&(iterF->f[0]),&Fx[iFc] ,classifierCDWT , 1, numFeatures);
+					
+					aux = NULL; //holds pointer to treeNodePtr for any nucleus we want to detach
+					if ( Fx[iFc] > thrCDWT && iterF->cellDivisionPtr->left->data->tempWilcard < 1.0f && iterF->cellDivisionPtr->left->data->tempWilcard < Fx[iFc] )
+					{
+						aux = iterF->cellDivisionPtr->left;
+						aux->parent = NULL;
+						iterF->cellDivisionPtr->left = NULL;
+					}
+					else if ( Fx[iFc] > thrCDWT && iterF->cellDivisionPtr->right->data->tempWilcard < 1.0f && iterF->cellDivisionPtr->right->data->tempWilcard < Fx[iFc] )
+					{
+						aux = iterF->cellDivisionPtr->right;
+						aux->parent = NULL;
+						iterF->cellDivisionPtr->right = NULL;
+						
+					}
+					
+					if ( aux != NULL )
+					{
+						//new lineage for now-detached daugther
+						lht.lineagesList.push_back( lineage() );
+						list<lineage>::iterator listLineageIter = ((++ ( lht.lineagesList.rbegin() ) ).base());//iterator for the last element in the list
+			
+						//set main root to "paste" sublineage starting at daughter
+						listLineageIter->bt.SetMainRoot( aux );
+			
+						//we need to make sure all the the elements in the binary tree point to the correct lineage
+						queue< TreeNode<ChildrenTypeLineage>* > q;
+						q.push( aux );
+
+						while( !q.empty() )
+						{
+							aux = q.front();
+							q.pop();
+							if( aux->left != NULL) q.push(aux->left);
+							if( aux->right != NULL) q.push(aux->right);
+							aux->data->treeNode.setParent( listLineageIter );
+						}
+						
+						//iterF->cellDivisionPtr->data->probCellDivision = Fx[iFc];//store result for cell division GUI (active learning) and debugging
+					} else {
+						//the previously-attached nucleus won both the race and the higher score, so was not detached
+						++iterF;
+						iFc++;
+						continue;
+					}
+				}
+			} else {
+				//cout << " cellDivisionWithTemporalWindow point E5." <<endl;
+				//iterF->calculateFeaturesSingleWindowForDaughters();
+				iterF->calculateFeaturesSingleWindowForDaughters_featureSelection_v1_2021();
+				//record for next iteration to reserve appropriate ammount of memory
+				numFeatures = iterF->f.size();
+	
+				//call classifier to make the decision
+				boostingTreeClassifierTranspose(&(iterF->f[0]),&Fx[iFc] ,classifierCDWT , 1, numFeatures);
+				//iterF->cellDivisionPtr->data->probCellDivision = Fx[iFc];//store result for cell division GUI (active learning) and debugging
+			}
 			//cout << " cellDivisionWithTemporalWindow point E6." <<endl;
 			
 			if ( Fx[iFc] > Fx_max )
@@ -533,10 +591,14 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 		//cout << "  About to test iter_this_max and Fx_max: " << iter_this_max << " " << Fx_max << "..." << endl;
 		if( iter_this_max >= 0 && Fx_max > thrCDWT )//true cell division, so we have to create new links
 		{
+			
+			iterF->cellDivisionPtr->data->probCellDivision = Fx_max;//store result for cell division GUI (active learning) and debugging
+			
+			
 			//we need to make sure all the the elements in the binary tree point to the correct lineage
 			queue< TreeNode<ChildrenTypeLineage>* > q;
 			q.push( iterF->cellDivisionDaughterPtr );
-			//TreeNode<ChildrenTypeLineage>* aux;
+
 			while( !q.empty() )
 			{
 				aux = q.front();
@@ -546,10 +608,19 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 				aux->data->treeNode.setParent( iterF->cellDivisionPtr->data->treeNode.getParent() );
 			}
 			iterF->cellDivisionDaughterPtr->parent = iterF->cellDivisionPtr;
-			if ( iterF->cellDivisionPtr->right == NULL ) 
+			if ( iterF->cellDivisionPtr->right == NULL )
+			{
 				iterF->cellDivisionPtr->right = iterF->cellDivisionDaughterPtr;
-			else if ( iterF->cellDivisionPtr->left == NULL ) // should not go here
-				iterF->cellDivisionPtr->left = iterF->cellDivisionDaughterPtr;			
+				iterF->cellDivisionPtr->left->data->tempWilcard = 1.0f; //make high score of previously-existing daugther nucleus, so it doesn't get detached if new daugther is racing against another
+			}
+			else if ( iterF->cellDivisionPtr->left == NULL )
+			{
+				iterF->cellDivisionPtr->left = iterF->cellDivisionDaughterPtr;
+				iterF->cellDivisionPtr->right->data->tempWilcard = 1.0f; //make high score of previously-existing daugther nucleus, so it doesn't get detached if new daugther is racing against another
+			}
+			
+			//store division score in tempWilcard in case we are racing against another daugther for the same mother
+			iterF->cellDivisionDaughterPtr->data->tempWilcard = Fx_max;
 			
 			//DEBUG: print lineages to confirm attached
 			/*
@@ -564,7 +635,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 			//cout<<"   DEBUG: TGMMsupport at frame " << frame << ": division parent " << (void *)(iterF->cellDivisionPtr) << ", new attached child " << (void *)(iterF->cellDivisionDaughterPtr) << " with " << iterF->cellDivisionPtr->getNumChildren() << " total siblings." << endl;
 			
 			numTrueCellDivisions++;
-		}else{//false cell division -> daughter starts a new lineage
+		} else {//false cell division -> daughter starts a new lineage
 			lht.lineagesList.push_back( lineage() );
 			list<lineage>::iterator listLineageIter = ((++ ( lht.lineagesList.rbegin() ) ).base());//iterator for the last element in the list
 			
@@ -574,7 +645,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 			//we need to make sure all the the elements in the binary tree point to the correct lineage
 			queue< TreeNode<ChildrenTypeLineage>* > q;
 			q.push( iterF->cellDivisionDaughterPtr );
-			//TreeNode<ChildrenTypeLineage>* aux;
+
 			while( !q.empty() )
 			{
 				aux = q.front();
@@ -587,7 +658,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 			//cout<<"   DEBUG: TGMMsupport at frame " << frame << ": rejected division with mother " << (void *)(iterF->cellDivisionPtr) << ", new birth " << (void *)(iterF->cellDivisionDaughterPtr) << " with " << iterF->cellDivisionDaughterPtr->getNumChildren() << " children." << endl;
 		}
 
-		if (writeCDWTfeatures())
+		if (writeCDWTfeatures() && Fx_max >= 0 ) //don't attempt to store any features in vector f, if we never populated vector f above
 		{
 			iterF->writeToBinary(foutFeat);
 			foutXYZ << iterF->cellDivisionPtr->data->centroid[0] << " " << iterF->cellDivisionPtr->data->centroid[1] << " " << iterF->cellDivisionPtr->data->centroid[2] << endl;
@@ -595,10 +666,10 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 		}
 		
 		//okay now forward pedal in iterator to next new prospective daughter
-		for ( int iter_c=0; iter_c<iFc; iter_c++ )
-			++iterF;
 		for ( int iter_c=0; iter_c<iter_this_max; iter_c++ )
-			--iterF;			
+			--iterF;
+		for ( int iter_c=0; iter_c<iFc; iter_c++ )
+			++iterF;		
 				
 	}				
 
@@ -715,7 +786,7 @@ int cellDivisionTemporalWindow_TGMMsupport::classifyCellDivisionTemporalWindow(l
 
 
 	//extend 4D Haar features using temporal combinations and classify results
-	size_t numFeatures = 1000;//to pre-reserve space
+	size_t numFeatures = 2400;//to pre-reserve space
 	feature Fx;
 
 	ofstream foutXYZ, foutFeat;
