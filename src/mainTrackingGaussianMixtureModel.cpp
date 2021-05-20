@@ -1742,7 +1742,8 @@ int main( int argc, const char** argv )
 
         //---------------------------------------------------------------------------------------------------
         //-------------incorporate temporal logical rules in a time window to improve results----------------
-			cout<<"******************************************************************************"<<endl;
+			//cout<<"******************************************************************************"<<endl;
+			cout<<">> Begin temporal logical rules..."<<endl;
             //TicTocTimer ttTemporalLogicalRules = tic();
 
             //-----update lineage hyper tree with the final GMM results from this frame-----------------------
@@ -1758,7 +1759,7 @@ int main( int argc, const char** argv )
 					 numCellDivisions,numBirths,regularize_W4DOF,im));
             }
             
-            cout << "Generated (not touching supervoxels) " << numCellDivisions << " cell divisions out of " << lht.nucleiList[frame].size() - numCellDivisions << " cells in frame " << frame << ".Also added " << numBirths << " new tracks" << endl;
+            cout << "Generated (not touching supervoxels) " << numCellDivisions << " cell divisions out of " << lht.nucleiList[frame].size() - numCellDivisions << " cells in frame " << frame << ". Also added " << numBirths << " new tracks." << endl;
 
             //--------------------------------------------------------
             if (frame > iniFrame)
@@ -1775,8 +1776,8 @@ int main( int argc, const char** argv )
                 // At this point we're done with the procesed float data from the previous frame, so flush it here.
                 //frame < iniFrame + 2 * configOptions.temporalWindowRadiusForLogicalRules
                 
-                if ( !(configOptions.cellDivisionClassifier.Amatf2013.use_2021_code) ) 
-                    time_series_map.flush(frame - 1);
+                //if ( !(configOptions.cellDivisionClassifier.Amatf2013.use_2021_code) ) 
+                time_series_map.flush(frame - 1);
 
                 //analyze cell divisions and cut links in the ones that do not satisfy the midplane division constraint
                 int numCorrectionsD, numSplitsD;
@@ -1830,7 +1831,7 @@ int main( int argc, const char** argv )
 					lht.deleteShortLivedDaughtersAll(lengthTMthr, frame - lengthTMthr, numCorrections, numSplits);//delete short living daughter
 					cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death before " << lengthTMthr << " time points after cell division" << endl;
 					
-					if ( !(configOptions.cellDivisionClassifier.Amatf2013.use_2021_code) ) 
+					if ( !(configOptions.cellDivisionClassifier.Amatf2013.use_2021_code) )
                     {
 						//--------------------------------------------------------
 						//This is just a patch tomake sure that breakCellDivisionBasedOnCellDivisionPlaneConstraint works correctly. Som of the heuristic spatio-temporal rules change nuclei composition of supervoxels but do not update centroids.
@@ -1895,9 +1896,12 @@ int main( int argc, const char** argv )
 						
 						//set up parameters and cache images as needed
 						int frameOffset = frame - configOptions.temporalWindowRadiusForLogicalRules;
-						bool was_cached0,was_cached1;
+						/*bool was_cached0,was_cached1;
 	                    was_cached0=time_series_map.maybe_process(frameOffset,hsVec[configOptions.temporalWindowRadiusForLogicalRules]);
 	                    was_cached1=time_series_map.maybe_process(frameOffset+1,hsVec[configOptions.temporalWindowRadiusForLogicalRules+1]);
+						*/
+						time_series_map.maybe_process(frameOffset,hsVec[configOptions.temporalWindowRadiusForLogicalRules]);
+						time_series_map.maybe_process(frameOffset+1,hsVec[configOptions.temporalWindowRadiusForLogicalRules+1]);
 						
 						//DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
 						//run division classifier
@@ -1932,11 +1936,13 @@ int main( int argc, const char** argv )
 							cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death at frame " << frame - lengthTMthr << " time points after cell division" << endl;
 						}
 						
-						//clean up the mess
+						//don't clean up, these redo segmentations will be used again in the next frame 
+						/*
 						if (!was_cached0)
 							time_series_map.flush(frameOffset);
 						if (!was_cached1)
 							time_series_map.flush(frameOffset+1);
+						*/
                     }
                     else
                     {
@@ -2035,16 +2041,13 @@ int main( int argc, const char** argv )
                 TIME(delete hsVec.front());
                 TIME(hsVec.erase(hsVec.begin()));
 				
-				time_series_map.flush(frameOffset);
-				
 				if(time_series_map.is_cached(frameOffset))
 					time_series_map.flush(frameOffset);
             }
             
             //DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame, lht );
-			
+			cout<<"...end temporal logical rules."<<endl;
             //cout << "Applying all the temporal logical rules took " << toc(&ttTemporalLogicalRules) << " secs" << endl;
-			cout<<"******************************************************************************"<<endl;
             //--------------end of temporal logical rules--------------------------------------------------
             //---------------------------------------------------------------------------------------------
 
@@ -2082,7 +2085,7 @@ int main( int argc, const char** argv )
 #else //Linux
             cout << "Frame " << frame << " took " << difftime(time(NULL),start_frame) << " secs" << endl;
 #endif
-			
+            cout<<"******************************************************************************"<<endl;
 			/*DEBUG -- detect potential memory leaks
 			HANDLE_ERROR( cudaSetDevice( devCUDA ) );
 			HANDLE_ERROR( cudaDeviceReset() );*/
