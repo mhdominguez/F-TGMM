@@ -448,6 +448,31 @@ static void DebugFindZeroTreeNodePtrAddr ( int frame, int frameOffset, lineageHy
 	}
 }
 
+static void DebugFindUnmatchedSupervoxelChildren ( int frame, int frameOffset, lineageHyperTree& lht ) {
+	if ( frame < 0 )
+		frame = 0;
+	
+	cout << "=============DEBUGGING: looking for abnormal Supervoxels at frames " << frame << " to " << frameOffset << "====================" << endl;
+	
+	bool printme;
+	int firstSvTime;
+	
+	for( int i=frame; i<=frameOffset; i++ ) 
+	{
+		for(list<nucleus>::iterator iterN = lht.nucleiList[i].begin(); iterN != lht.nucleiList[i].end(); ++iterN)
+		{
+			vector< SibilingTypeSupervoxel >::iterator iterS = iterN->treeNode.getChildren().begin();
+			firstSvTime = (*iterS)->TM;
+			++iterS;
+			for(; iterS != iterN->treeNode.getChildren().end(); ++iterS)
+			{
+				if ( (*iterS)->TM != firstSvTime )
+					cout << "   Problem with unmatched supervoxel timepoints, " << (*iterS)->TM << " != " << firstSvTime << ", for treeNodePtr " << (void *)(iterN->treeNodePtr) << " at timepoint " << iterN->TM << "." << endl;
+			}
+		}
+	}
+}
+
 static void DebugSvRatioHoles(string debugPath, string itoa, hierarchicalSegmentation* hs) {
     cout << "=============DEBUGGING: writing out info on super-voxels holes ratio feature to setup a good threshold=====================" << endl;
     ofstream fsvr(debugPath + "debugSvHoleRatio_" + itoa + ".txt");
@@ -1630,10 +1655,10 @@ int main( int argc, const char** argv )
             }
             else//this is not the first time point
             {
-
+                DebugFindZeroTreeNodePtrAddr( frame - 1, frame, lht );
+                DebugFindUnmatchedSupervoxelChildren( frame - 1, frame, lht );
                 //generate vecGM from lht
-                TIME(parseNucleiList2TGMM<float>(vecGM, lht, frame - 1, regularize_W4DOF, thrDist2LargeDisplacement,
-                    time_series_map.getProcessed(frame - 1)));//we generate nuclei list from previous frame-> we want to extend this solution to t+1 using TGMM framework
+                TIME(parseNucleiList2TGMM<float>(vecGM, lht, frame - 1, regularize_W4DOF, thrDist2LargeDisplacement, time_series_map.getProcessed(frame - 1)));//we generate nuclei list from previous frame-> we want to extend this solution to t+1 using TGMM framework
                 double alphaTotal = 0.0;
                 for (unsigned int kk = 0; kk < vecGM.size(); kk++)
                 {
@@ -1903,7 +1928,8 @@ int main( int argc, const char** argv )
 						time_series_map.maybe_process(frameOffset,hsVec[configOptions.temporalWindowRadiusForLogicalRules]);
 						time_series_map.maybe_process(frameOffset+1,hsVec[configOptions.temporalWindowRadiusForLogicalRules+1]);
 						
-						//DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						DebugFindUnmatchedSupervoxelChildren( frameOffset, frame, lht );
 						//run division classifier
 						float *im = time_series_map.getProcessed(frameOffset+1);
 						TIME(numCorrections = cdwtClassifier->classifyCellDivisionTemporalWindow(lht, frameOffset, time_series_map.imgVecUINT16, devCUDA, configOptions.thrCellDivisionPlaneDistance,time_series_map.getProcessed(frameOffset),im,regularize_W4DOF, scaleOrig ));
@@ -1927,7 +1953,8 @@ int main( int argc, const char** argv )
 						extendDeadNucleiAtTMwithHS(lht, hsVec[configOptions.temporalWindowRadiusForLogicalRules+1], frameOffset, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
 						cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells in frame " << frameOffset << " using a simple local Hungarian algorithm with supervoxels" << endl;
 						
-						DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						DebugFindZeroTreeNodePtrAddr( frameOffset, frameOffset+1, lht );
+						DebugFindUnmatchedSupervoxelChildren( frameOffset, frameOffset+1, lht );
 						
 						if (lengthTMthr > 0)
 						{
@@ -2208,6 +2235,26 @@ int main( int argc, const char** argv )
 
         return 0;
     }
+    catch (std::bad_alloc & exception) { 
+        std::cerr << "bad_alloc detected: " << exception.what() << endl;
+		return 1;
+    }
+    catch (std::bad_cast & exception) { 
+        std::cerr << "bad_cast detected: " << exception.what() << endl;
+		return 1;
+    }    
+    catch (std::runtime_error & exception) { 
+        std::cerr << "runtime_error detected: " << exception.what() << endl;
+		return 1;
+    }
+    catch (std::length_error & exception) { 
+        std::cerr << "length_error detected: " << exception.what() << endl; 
+		return 1;
+    }  
+    catch (std::out_of_range & exception) { 
+        std::cerr << "out_of_range detected: " << exception.what() << endl; 
+		return 1;
+    }      
     catch (exception e) {
         cerr << e.what() << endl;
         return 1;

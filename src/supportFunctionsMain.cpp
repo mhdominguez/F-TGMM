@@ -41,28 +41,28 @@ int parseNucleiList2TGMM(std::vector<GaussianMixtureModel*> &vecGM,lineageHyperT
 
 	list<nucleus>* listNucleiPtr = (&(lht.nucleiList[frame]));
 	size_t N = listNucleiPtr->size();
-	cout << "     P1." << endl;
+	//cout << "     P1." << endl;
 	//resize vecGM
 	if( N > vecGM.size())//I need to allocate
 	{
-		cout << "     P1a." << endl;
+		//cout << "     P1a." << endl;
 		vecGM.reserve( N );
 		for(size_t ii = vecGM.size(); ii<N; ii++)
 			vecGM.push_back( new GaussianMixtureModel(ii) );
 	}else{//I need to deallocate
-		cout << "     P1b." << endl;
+		//cout << "     P1b." << endl;
 		for(size_t ii = N; ii < vecGM.size(); ii++)
 			delete vecGM[ii];
 		vecGM.resize(N);
 	}
-	cout << "     P2." << endl;
+	//cout << "     P2." << endl;
 
 	//reset supervoxels id
 	int count = 0;
 	for(list<supervoxel>::iterator iterS = lht.supervoxelsList[frame].begin(); iterS != lht.supervoxelsList[frame].end(); ++iterS, count++)
 		iterS->tempWildcard = (float) count;
 
-	cout << "     P3." << endl;
+	//cout << "     P3." << endl;
 	//compute all the stats from centroids	
     float N_k;
     float m_k[dimsImage] = { 0 };
@@ -117,7 +117,11 @@ cout << "     P4." << endl;
         vecGM[count]->parentId = count;
 
         vecGM[count]->lineageId = count;//some pieces of the code need this info to be different than -1;in this case everything is from a different lineage
-
+	}
+	count = 0;
+	cout << "     P5." << endl;
+    for (list<nucleus>::iterator iterN = listNucleiPtr->begin(); iterN != listNucleiPtr->end(); ++iterN, ++count)
+    {
         //save supervoxel
         vecGM[count]->supervoxelIdx.resize(iterN->treeNode.getNumChildren());
         int countS = 0;
