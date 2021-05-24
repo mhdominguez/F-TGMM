@@ -1805,7 +1805,7 @@ int main( int argc, const char** argv )
             //parameters for logical temporal rules corrections (TODO: I should add them to some advance panel options later)
 			if (frame >= iniFrame + 2 * configOptions.temporalWindowRadiusForLogicalRules) // frame is out of the initial window period
 			{
-				//DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame-1, lht );
+				DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame-1, lht );
 				
 				int numCorrections, numSplits;
 
@@ -1820,7 +1820,7 @@ int main( int argc, const char** argv )
 					cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death before " << lengthTMthr << " time points after cell division" << endl;
 
 #endif
-					//DebugFindZeroTreeNodePtrAddr( frame - 1, frame, lht );
+					DebugFindZeroTreeNodePtrAddr( frame - 1, frame, lht );
 					
 					float *im = time_series_map.getProcessed(frame);
 					extendDeadNucleiAtTMwithHS(lht, hs, frame - 1, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
@@ -1913,7 +1913,7 @@ int main( int argc, const char** argv )
                     	TIME(numSplits = cdwtClassifier->getNumCellDivisions());
                     	cout << "Corrected " << numCorrections << " out of " << numSplits << " initially proposed cell divisions in frame " << frameOffset << " because cell division classifier with temporal window with thr =" << cdwtClassifier->getThrCDWT() << endl;
 						
-						//DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
 						//if (lengthTMthr > 0)
 						//{
 						//	//redo in case other fixes have incorporated
@@ -1927,7 +1927,7 @@ int main( int argc, const char** argv )
 						extendDeadNucleiAtTMwithHS(lht, hsVec[configOptions.temporalWindowRadiusForLogicalRules+1], frameOffset, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
 						cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells in frame " << frameOffset << " using a simple local Hungarian algorithm with supervoxels" << endl;
 						
-						//DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
 						
 						if (lengthTMthr > 0)
 						{
@@ -2046,7 +2046,7 @@ int main( int argc, const char** argv )
             }
             
             //DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame, lht );
-			cout<<"...end temporal logical rules."<<endl;
+			cout<<">> ...end temporal logical rules."<<endl;
             //cout << "Applying all the temporal logical rules took " << toc(&ttTemporalLogicalRules) << " secs" << endl;
             //--------------end of temporal logical rules--------------------------------------------------
             //---------------------------------------------------------------------------------------------

@@ -41,32 +41,35 @@ int parseNucleiList2TGMM(std::vector<GaussianMixtureModel*> &vecGM,lineageHyperT
 
 	list<nucleus>* listNucleiPtr = (&(lht.nucleiList[frame]));
 	size_t N = listNucleiPtr->size();
-
+	cout << "     P1." << endl;
 	//resize vecGM
 	if( N > vecGM.size())//I need to allocate
 	{
+		cout << "     P1a." << endl;
 		vecGM.reserve( N );
 		for(size_t ii = vecGM.size(); ii<N; ii++)
 			vecGM.push_back( new GaussianMixtureModel(ii) );
 	}else{//I need to deallocate
+		cout << "     P1b." << endl;
 		for(size_t ii = N; ii < vecGM.size(); ii++)
 			delete vecGM[ii];
 		vecGM.resize(N);
 	}
-
+	cout << "     P2." << endl;
 
 	//reset supervoxels id
 	int count = 0;
 	for(list<supervoxel>::iterator iterS = lht.supervoxelsList[frame].begin(); iterS != lht.supervoxelsList[frame].end(); ++iterS, count++)
 		iterS->tempWildcard = (float) count;
 
-
+	cout << "     P3." << endl;
 	//compute all the stats from centroids	
     float N_k;
     float m_k[dimsImage] = { 0 };
     float S_k[dimsImage * (1 + dimsImage) / 2] = { 0 };
     count = 0;
     int countW;
+cout << "     P4." << endl;
     for (list<nucleus>::iterator iterN = listNucleiPtr->begin(); iterN != listNucleiPtr->end(); ++iterN, ++count)
     {
 
@@ -578,10 +581,10 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 	}else{
 		
 		iterNucOwner = intersectionS->treeNode.getParent();
-		//cout << "    R3: " << (void *)(iterNucOwner->treeNodePtr) << "/" << (void *)(iterNucOwner->treeNodePtr->data->treeNodePtr) << endl;
+		cout << "    R3: " << (void *)(iterNucOwner->treeNodePtr) << "/" << (void *)(iterNucOwner->treeNodePtr->data->treeNodePtr) << endl;
 		 if( iterNucOwner->treeNodePtr->parent != NULL )
 		 {
-			//cout << "     R3parent: " << (void *)(iterNucOwner->treeNodePtr->parent) << "/" << (void *)(iterNucOwner->treeNodePtr->parent->data->treeNodePtr) << endl;
+			cout << "     R3parent: " << (void *)(iterNucOwner->treeNodePtr->parent) << "/" << (void *)(iterNucOwner->treeNodePtr->parent->data->treeNodePtr) << endl;
 			iterNucOwner = iterNucOwner->treeNodePtr->parent->data; //we were one time step ahead, so now look from the perspective of the parent of the nucelus who owns the supervoxels
 			//cout << "    R4: " << (void *)(iterNucOwner->treeNodePtr) << endl;
 			 if( iterNucOwner->treeNodePtr->getNumChildren() > 1)
@@ -646,9 +649,9 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 				cout << "   PROBLEM: extendDeadNuclei, a new birth used to extend a dead cell has NULL parent!" << endl;
 			if(rootDead != rootDead->data->treeNodePtr )
 				cout << "   PROBLEM: extendDeadNuclei, rootDead treeNodePtr incorrect!" << endl;
-			
-			cout<<"   DEBUG: lineageHyperTree::extendDeadNuclei: extended a dead cell at TM " << (void *)(rootDead) << " by attaching to a new birth at TM " << (void *)(iterNucOwner->treeNodePtr) << " with " << iterNucOwner->treeNodePtr->getNumChildren() << " children." << endl;
 			*/
+			cout<<"   DEBUG: lineageHyperTree::extendDeadNuclei: extended a dead cell at TM " << (void *)(rootDead) << " by attaching to a new birth at TM " << (void *)(iterNucOwner->treeNodePtr) << " with " << iterNucOwner->treeNodePtr->getNumChildren() << " children." << endl;
+			
 			return 1;
 		 }
 	}

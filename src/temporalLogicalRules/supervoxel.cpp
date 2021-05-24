@@ -732,7 +732,7 @@ void supervoxel::mergeSupervoxels(vector<supervoxel*> &src)
 
 		if(TM != (*iterS)->TM)
 		{
-			cout<<"ERROR: at mergeSupervoxel: TM are different. We cannot merge supervoxels"<<endl;
+			cout<<"ERROR: at mergeSupervoxel: TM are different ( " << TM << " vs. " << (*iterS)->TM << "). We cannot merge supervoxels"<<endl;
 			exit(3);
 		}
 #if 0

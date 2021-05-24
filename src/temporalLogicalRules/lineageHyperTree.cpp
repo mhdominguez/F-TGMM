@@ -2631,6 +2631,7 @@ float lineageHyperTree::JaccardDistance(TreeNode<ChildrenTypeLineage>* node, Tre
 	//check if we need to merge multiple supervoxels
 	supervoxel  *svPar, *svCh;
 	bool deleteSvPar = true, deleteSvCh = true;
+	int svTM;
 	if( node->data->treeNode.getNumChildren() == 1)
 	{
 		svCh = &(*(node->data->treeNode.getChildren().front()));	
@@ -2639,10 +2640,17 @@ float lineageHyperTree::JaccardDistance(TreeNode<ChildrenTypeLineage>* node, Tre
 		//merge all superovxels into one
 		vector< SibilingTypeSupervoxel >::iterator iterS = node->data->treeNode.getChildren().begin();
 		svCh = new supervoxel( *(*(iterS))  );
+		
+		svTM = (*iterS)->TM;
+		if ( svCh->TM != svTM )
+			cout << "DEBUG L1 Problem with copy constructor for supervoxel, " << svCh->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node) << endl;
+		
 		++iterS;
 		vector<supervoxel*> svVec;
 		for(; iterS != node->data->treeNode.getChildren().end(); ++iterS )
 		{
+			if ( (*iterS)->TM != svTM )
+				cout << "DEBUG L2 Problem with copy constructor for supervoxel, " << svCh->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node) << endl;
 			svVec.push_back( &(*(*iterS)) );
 		}
 		svCh->mergeSupervoxels(svVec);
@@ -2656,10 +2664,17 @@ float lineageHyperTree::JaccardDistance(TreeNode<ChildrenTypeLineage>* node, Tre
 		//merge all superovxels into one
 		vector< SibilingTypeSupervoxel >::iterator iterS = node2->data->treeNode.getChildren().begin();
 		svPar = new supervoxel( *(*(iterS))  );
+		
+		svTM = (*iterS)->TM;
+		if ( svPar->TM != svTM )
+			cout << "DEBUG L3 Problem with copy constructor for supervoxel, " << svPar->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node2) << endl;		
+		
 		++iterS;
 		vector<supervoxel*> svVec;
 		for(; iterS != node2->data->treeNode.getChildren().end(); ++iterS )
 		{
+			if ( (*iterS)->TM != svTM )
+				cout << "DEBUG L4 Problem with copy constructor for supervoxel, " << svCh->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node2) << endl;			
 			svVec.push_back( &(*(*iterS)) );
 		}
 		svPar->mergeSupervoxels(svVec);
