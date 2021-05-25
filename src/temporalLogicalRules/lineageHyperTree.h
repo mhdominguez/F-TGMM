@@ -253,8 +253,8 @@ public:
 	int mergeShortLivedAndCloseByDaughtersAll(int lengthTMthr,int maxTM, size_t minNeighboringVoxels, int conn3D, int& numCorrections, int& numSplits,const TimeSeriesMapT &time_series_map);// apply both mergeShortLivedDaughters and mergeNonSeparatingDaughters
 	int mergeParallelLineages(TreeNode<ChildrenTypeLineage>* root1, TreeNode<ChildrenTypeLineage>* root2,int conn3D, int64* neighOffset, size_t minNeighboringVoxels,const TimeSeriesMapT &time_series_map);//very similar to mergeNonSeparatingDaughters but with neighboring lineages
 	int mergeParallelLineagesAll(int conn3D, size_t minNeighboringVoxels, int &numMerges,const TimeSeriesMapT &time_series_map);
-	int extendDeadNuclei(TreeNode<ChildrenTypeLineage>* rootDead);//for a dead cell, tries to find an extension. Usually some other cell has "overtaken" the space, so this function creates a feasible extension to continue both tracks 
-	int extendDeadNucleiAtTM(int TM, int& numExtensions, int &numDeaths);// checks for all possible corrections in *this. 
+	//int extendDeadNuclei(TreeNode<ChildrenTypeLineage>* rootDead);//for a dead cell, tries to find an extension. Usually some other cell has "overtaken" the space, so this function creates a feasible extension to continue both tracks 
+	//int extendDeadNucleiAtTM(int TM, int& numExtensions, int &numDeaths);// checks for all possible corrections in *this. 
 	int deleteShortLineagesWithHighBackgroundClassifierScore(int maxLengthBackgroundCheck, int frame, float thrMinScoreFx, int& numPositiveChecks, int numActions);//finds lineages shorter than maxLengthBackgroundCheck and if all the supervoxels qualify as background->delete
 
 	static float cellDivisionPlaneDistance(float centroidMM[dimsImage], float centroidDL[dimsImage], float centroidDR[dimsImage]);//calculates distance of centroidMM to the midplane defined by centroidDL and centroidDR

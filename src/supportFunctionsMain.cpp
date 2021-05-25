@@ -69,7 +69,7 @@ int parseNucleiList2TGMM(std::vector<GaussianMixtureModel*> &vecGM,lineageHyperT
     float S_k[dimsImage * (1 + dimsImage) / 2] = { 0 };
     count = 0;
     int countW;
-cout << "     P4." << endl;
+    cout << "     P4." << endl;
     for (list<nucleus>::iterator iterN = listNucleiPtr->begin(); iterN != listNucleiPtr->end(); ++iterN, ++count)
     {
 
@@ -518,6 +518,11 @@ int extendDeadNucleiAtTMwithHS(lineageHyperTree &lht, hierarchicalSegmentation* 
 		{
 			if( iterN->treeNodePtr->getNumChildren() == 0)
 			{
+				if( iterN->TM != TM ) //if this is not true we will probably 
+				{
+					cout << "DEBUG Sv: Nucleus with treeNodePtr " << (void *)(iterN->treeNodePtr) << " has timepoint " << iterN->TM << ", that doesn't match " << TM << "!" << endl;
+					continue;
+				}
 				numDeaths++;
 				numExtensions += extendDeadNucleiWithHS(lht, hsForward, iterN->treeNodePtr,imgPtr,dont_repeat);
 			}
@@ -585,10 +590,10 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 	}else{
 		
 		iterNucOwner = intersectionS->treeNode.getParent();
-		cout << "    R3: " << (void *)(iterNucOwner->treeNodePtr) << "/" << (void *)(iterNucOwner->treeNodePtr->data->treeNodePtr) << endl;
+		//cout << "    R3: " << (void *)(iterNucOwner->treeNodePtr) << "/" << (void *)(iterNucOwner->treeNodePtr->data->treeNodePtr) << endl;
 		 if( iterNucOwner->treeNodePtr->parent != NULL )
 		 {
-			cout << "     R3parent: " << (void *)(iterNucOwner->treeNodePtr->parent) << "/" << (void *)(iterNucOwner->treeNodePtr->parent->data->treeNodePtr) << endl;
+			//cout << "     R3parent: " << (void *)(iterNucOwner->treeNodePtr->parent) << "/" << (void *)(iterNucOwner->treeNodePtr->parent->data->treeNodePtr) << endl;
 			iterNucOwner = iterNucOwner->treeNodePtr->parent->data; //we were one time step ahead, so now look from the perspective of the parent of the nucelus who owns the supervoxels
 			//cout << "    R4: " << (void *)(iterNucOwner->treeNodePtr) << endl;
 			 if( iterNucOwner->treeNodePtr->getNumChildren() > 1)
@@ -654,7 +659,7 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 			if(rootDead != rootDead->data->treeNodePtr )
 				cout << "   PROBLEM: extendDeadNuclei, rootDead treeNodePtr incorrect!" << endl;
 			*/
-			cout<<"   DEBUG: lineageHyperTree::extendDeadNuclei: extended a dead cell at TM " << (void *)(rootDead) << " by attaching to a new birth at TM " << (void *)(iterNucOwner->treeNodePtr) << " with " << iterNucOwner->treeNodePtr->getNumChildren() << " children." << endl;
+			//cout<<"   DEBUG: lineageHyperTree::extendDeadNuclei: extended a dead cell at TM " << (void *)(rootDead) << " by attaching to a new birth at TM " << (void *)(iterNucOwner->treeNodePtr) << " with " << iterNucOwner->treeNodePtr->getNumChildren() << " children." << endl;
 			
 			return 1;
 		 }
@@ -687,7 +692,7 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 	supervoxel rootSplitSv[2];
 	float ddSplit[2];
 	//items needed to know correspondence between hsForward->currentSegmentation and lht.supervoxelsList[rootDead->data->TM + 1]
-	int TMforward = rootDead->data->TM + 1;
+	const int TMforward = rootDead->data->TM + 1;
 	vector<ChildrenTypeNucleus> svListIterVec;
 	lht.getSupervoxelListIteratorsAtTM( svListIterVec, TMforward );
 	size_t countNN = 0;//to keep id
@@ -696,10 +701,26 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 	//cout << "   S2." << endl;
 	for(list< supervoxel >::iterator iter = svListT0.begin(); iter != svListT0.end(); ++iter)
 	{
-		size_t sizeVec = iter->nearestNeighborsInTimeForward.size();
+		/*size_t sizeVec = iter->nearestNeighborsInTimeForward.size();
 		for( size_t cc = 0; cc < sizeVec; cc++ )//we need to access using indexes because we push_back into iter->nearestNeighborsInTimeForward if a split is done
 		{
-			SibilingTypeSupervoxel iterNeigh = iter->nearestNeighborsInTimeForward[cc];
+			SibilingTypeSupervoxel iterNeigh = iter->nearestNeighborsInTimeForward[cc];*/
+		
+		//reverse iterate because using push_back on this very vector
+		if ( iter->TM + 1 != TMforward )
+		{
+			cout << "extendDeadNucleiWithHS: supervoxels time frame not matched, " << TMforward << " != " << iter->TM + 1 << endl;
+			continue;
+		}
+		vector<SibilingTypeSupervoxel>::iterator iterNeighEnd = iter->nearestNeighborsInTimeForward.end(); //set this up before, so we don't re-run elements that have been push_back'd
+		for(vector<SibilingTypeSupervoxel>::iterator iterNeighThis = iter->nearestNeighborsInTimeForward.begin(); iterNeighThis != iterNeighEnd; ++iterNeighThis) 
+		{
+			SibilingTypeSupervoxel iterNeigh = (*iterNeighThis);
+			if ( (*iterNeigh).TM != TMforward )
+			{
+				cout << "extendDeadNucleiWithHS: splitting supervoxels time frame not matched, " << (*iterNeigh).TM << " != " << iter->TM + 1 << endl;
+				continue;
+			}
 			ddNoSplit = supervoxelFromNucleus.JaccardDistance(*iterNeigh);//calculate distance without splitting
 			float ddThr = ddNoSplit - 0.1;//it has to be significantly better
 
@@ -737,11 +758,21 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 				rootSplitSv[0].weightedGaussianStatistics<float>(true,imgPtr);
 				rootSplitSv[1].weightedGaussianStatistics<float>(true,imgPtr);
 
-				//update sv-nucleus info				
+				//update sv-nucleus info
+				if ( (*iterNeigh).treeNode.getParent()->TM != TMforward )
+				{
+					cout << "extendDeadNucleiWithHS: nucleus-supervoxel time mismatch, " << (*iterNeigh).TM << " != " << (*iterNeigh).treeNode.getParent()->TM << endl;
+					continue;
+				}				
 				rootSplitSv[0].treeNode.setParent((*iterNeigh).treeNode.getParent());
 				rootSplitSv[1].treeNode.setParent((*iterNeigh).treeNode.getParent());
 
-
+				/*DEBUG
+				if ( rootSplitSv[1].TM != TMforward )
+				{
+					cout << "extendDeadNucleiWithHS: Supervoxel being added to HS, time mismatch, " << rootSplitSv[1].TM << " != " << TMforward << ", for nucleus with treeNodePtr " << (void *)((*iterNeigh).treeNode.getParent()->treeNodePtr) << endl;
+					continue;
+				} */
 				//lht->supervoxelsList[TM] was created as a copy of hs->currentSegmentation for backwards compatibility (even if it is redundant). So we just need tokeep that structure								
 				int aa = (int) ((*iterNeigh).tempWildcard);
 				hsForward->currentSegmentatioSupervoxel[aa] = rootSplitSv[0];//root split has the correct nodeHSptr
@@ -758,10 +789,14 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 				lht.supervoxelsList[TMforward].push_back(rootSplitSv[1]);
 				SibilingTypeSupervoxel iterSadded = (++ ( lht.supervoxelsList[TMforward].rbegin() ) ).base();//get iterator to added element
 				iterSadded->tempWildcard = lht.supervoxelsList[TMforward].size() - 1;
-
 				(*iterNeigh).treeNode.getParent()->treeNode.addChild( iterSadded ); //CRASH here
-
+				/*if ( iterSadded->TM != TMforward )
+				{
+					cout << "extendDeadNucleiWithHS: iterSadded being added, time mismatch, " << iterSadded->TM << " != " << TMforward << ", for nucleus with treeNodePtr " << (void *)((*iterNeigh).treeNode.getParent()->treeNodePtr) << endl;
+					exit( 5);
+				}*/				
 				//add new supervoxels in iter->NEARESTneighbors list for Hungarian algorithm;
+				//added to FRONT so iterator doesn't return to it
 				iter->nearestNeighborsInTimeForward.push_back( iterSadded );
 			}
 		}
@@ -779,19 +814,24 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 	
 	//5.-Parse results and modify assignment accordingly
 	int extendedLineages = 0;//1->we have extended it
-	list< supervoxel >::iterator svListT0iter = svListT0.begin();
 	int count =0;
-	for(iterS = rootDead->data->treeNode.getChildren().begin();  iterS != rootDead->data->treeNode.getChildren().end(); ++iterS, ++svListT0iter, ++count)
+	for(iterS = rootDead->data->treeNode.getChildren().begin();  iterS != rootDead->data->treeNode.getChildren().end(); ++iterS, ++count)
 	{
 		if( assignmentId[count]->centroid[0] < 0.0f )
 			continue;//not assigned to anything
+			
+		if ( assignmentId[count]->TM != TMforward )
+		{
+			cout << "extendDeadNucleiWithHS: assignmentId[count]->TM, time mismatch, " << assignmentId[count]->TM << " != " << TMforward << ", for attaching to nucleus with treeNodePtr " << (void *)(rootDead) << endl;
+			continue;
+		}			
 
 		if( assignmentId[count]->treeNode.hasParent() == false )//the assigned element has no parent-> we can claim it directly
 		{
 			if( extendedLineages == 0)//we need to create new nucleus in the list
 			{
-				lht.nucleiList[ rootDead->data->TM + 1 ].push_back( nucleus(rootDead->data->TM + 1, assignmentId[count]->centroid) );
-				iterNucNew = (++ ( lht.nucleiList[ rootDead->data->TM + 1 ].rbegin() ) ).base();//iterator to last added nucleus
+				lht.nucleiList[ TMforward ].push_back( nucleus(TMforward, assignmentId[count]->centroid) );
+				iterNucNew = (++ ( lht.nucleiList[ TMforward ].rbegin() ) ).base();//iterator to last added nucleus
 				
 				//update lineage-nucleus hypergraph
 				iterNucNew->treeNode.setParent( rootDead->data->treeNode.getParent() );
@@ -814,8 +854,8 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 		{
 			if( extendedLineages == 0)//we need to create new nucleus in the list
 			{
-				lht.nucleiList[ rootDead->data->TM + 1 ].push_back( nucleus(rootDead->data->TM + 1, assignmentId[count]->centroid) );
-				iterNucNew = (++ ( lht.nucleiList[ rootDead->data->TM + 1 ].rbegin() ) ).base();//iterator to last added nucleus
+				lht.nucleiList[ TMforward ].push_back( nucleus(TMforward, assignmentId[count]->centroid) );
+				iterNucNew = (++ ( lht.nucleiList[ TMforward ].rbegin() ) ).base();//iterator to last added nucleus
 				
 				//update lineage-nucleus hypergraph
 				iterNucNew->treeNode.setParent( rootDead->data->treeNode.getParent() );
@@ -823,7 +863,6 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 				iterNucNew->treeNodePtr = rootDead->data->treeNode.getParent()->bt.insert( iterNucNew );
 				if( iterNucNew->treeNodePtr == NULL )
 					exit(3);
-
 				extendedLineages++;
 				//iterNucNew->confidence = 4;//to analyze extended elements
 				

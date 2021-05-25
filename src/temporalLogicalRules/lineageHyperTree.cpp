@@ -2642,15 +2642,15 @@ float lineageHyperTree::JaccardDistance(TreeNode<ChildrenTypeLineage>* node, Tre
 		svCh = new supervoxel( *(*(iterS))  );
 		
 		svTM = (*iterS)->TM;
-		if ( svCh->TM != svTM )
-			cout << "DEBUG L1 Problem with copy constructor for supervoxel, " << svCh->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node) << endl;
+		/*if ( svCh->TM != svTM )
+			cout << "DEBUG L1 Problem with copy constructor for supervoxel, " << svCh->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node) << endl;*/
 		
 		++iterS;
 		vector<supervoxel*> svVec;
 		for(; iterS != node->data->treeNode.getChildren().end(); ++iterS )
 		{
-			if ( (*iterS)->TM != svTM )
-				cout << "DEBUG L2 Problem with copy constructor for supervoxel, " << svCh->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node) << endl;
+			/*if ( (*iterS)->TM != svTM )
+				cout << "DEBUG L2 Problem with copy constructor for supervoxel, " << svCh->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node) << endl;*/
 			svVec.push_back( &(*(*iterS)) );
 		}
 		svCh->mergeSupervoxels(svVec);
@@ -2666,15 +2666,15 @@ float lineageHyperTree::JaccardDistance(TreeNode<ChildrenTypeLineage>* node, Tre
 		svPar = new supervoxel( *(*(iterS))  );
 		
 		svTM = (*iterS)->TM;
-		if ( svPar->TM != svTM )
-			cout << "DEBUG L3 Problem with copy constructor for supervoxel, " << svPar->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node2) << endl;		
+		/*if ( svPar->TM != svTM )
+			cout << "DEBUG L3 Problem with copy constructor for supervoxel, " << svPar->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node2) << endl;*/
 		
 		++iterS;
 		vector<supervoxel*> svVec;
 		for(; iterS != node2->data->treeNode.getChildren().end(); ++iterS )
 		{
-			if ( (*iterS)->TM != svTM )
-				cout << "DEBUG L4 Problem with copy constructor for supervoxel, " << svCh->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node2) << endl;			
+			/*if ( (*iterS)->TM != svTM )
+				cout << "DEBUG L4 Problem with copy constructor for supervoxel, " << svCh->TM << " != " << svTM << ", for treeNodePtr " << (void *)(node2) << endl;	*/		
 			svVec.push_back( &(*(*iterS)) );
 		}
 		svPar->mergeSupervoxels(svVec);
@@ -3240,6 +3240,7 @@ void lineageHyperTree::cutLinkageBetweenMotherAndFurthestDaughter(TreeNode<Child
 }
 
 //=============================================================================================================================
+/*
 int lineageHyperTree::extendDeadNuclei(TreeNode<ChildrenTypeLineage>* rootDead)
 {
 	if(rootDead == NULL || rootDead->getNumChildren() != 0)
@@ -3433,6 +3434,7 @@ int lineageHyperTree::extendDeadNuclei(TreeNode<ChildrenTypeLineage>* rootDead)
 
 	return extendedLineages;//returns 1 if extension was achieved
 }
+
 //========================================================================
 int lineageHyperTree::extendDeadNucleiAtTM(int TM, int& numExtensions, int &numDeaths)
 {
@@ -3455,7 +3457,7 @@ int lineageHyperTree::extendDeadNucleiAtTM(int TM, int& numExtensions, int &numD
 
 	return 0;
 }
-
+*/
 
 //========================================================================
 int lineageHyperTree::deleteDeadBranchesAll(int maxTM, int &numDelete)

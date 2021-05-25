@@ -1655,8 +1655,8 @@ int main( int argc, const char** argv )
             }
             else//this is not the first time point
             {
-                DebugFindZeroTreeNodePtrAddr( frame - 1, frame, lht );
-                DebugFindUnmatchedSupervoxelChildren( frame - 1, frame, lht );
+                //DebugFindZeroTreeNodePtrAddr( frame - 1, frame, lht );
+                //DebugFindUnmatchedSupervoxelChildren( frame - 1, frame, lht );
                 //generate vecGM from lht
                 TIME(parseNucleiList2TGMM<float>(vecGM, lht, frame - 1, regularize_W4DOF, thrDist2LargeDisplacement, time_series_map.getProcessed(frame - 1)));//we generate nuclei list from previous frame-> we want to extend this solution to t+1 using TGMM framework
                 double alphaTotal = 0.0;
@@ -1680,6 +1680,7 @@ int main( int argc, const char** argv )
                     for (int aa = 0; aa < Wsize; aa++)
                         vecGM[kk]->W_k.data()[aa] /= 2.0;
                 }
+                //DebugFindUnmatchedSupervoxelChildren( frame - 1, frame, lht );
             }
 
 
@@ -1830,7 +1831,7 @@ int main( int argc, const char** argv )
             //parameters for logical temporal rules corrections (TODO: I should add them to some advance panel options later)
 			if (frame >= iniFrame + 2 * configOptions.temporalWindowRadiusForLogicalRules) // frame is out of the initial window period
 			{
-				DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame-1, lht );
+				//DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame-1, lht );
 				
 				int numCorrections, numSplits;
 
@@ -1845,7 +1846,8 @@ int main( int argc, const char** argv )
 					cout << "Deleted " << numCorrections << " out of " << numSplits << " splits because of a sibling death before " << lengthTMthr << " time points after cell division" << endl;
 
 #endif
-					DebugFindZeroTreeNodePtrAddr( frame - 1, frame, lht );
+					//DebugFindZeroTreeNodePtrAddr( frame - 1, frame, lht );
+					//DebugFindUnmatchedSupervoxelChildren( frame - 1, frame, lht );
 					
 					float *im = time_series_map.getProcessed(frame);
 					extendDeadNucleiAtTMwithHS(lht, hs, frame - 1, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
@@ -1928,8 +1930,10 @@ int main( int argc, const char** argv )
 						time_series_map.maybe_process(frameOffset,hsVec[configOptions.temporalWindowRadiusForLogicalRules]);
 						time_series_map.maybe_process(frameOffset+1,hsVec[configOptions.temporalWindowRadiusForLogicalRules+1]);
 						
-						DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
-						DebugFindUnmatchedSupervoxelChildren( frameOffset, frame, lht );
+						//DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						//DebugFindUnmatchedSupervoxelChildren( frameOffset, frameOffset+1, lht );
+						//DebugFindUnmatchedSupervoxelChildren( frame - 1, frame, lht );
+						
 						//run division classifier
 						float *im = time_series_map.getProcessed(frameOffset+1);
 						TIME(numCorrections = cdwtClassifier->classifyCellDivisionTemporalWindow(lht, frameOffset, time_series_map.imgVecUINT16, devCUDA, configOptions.thrCellDivisionPlaneDistance,time_series_map.getProcessed(frameOffset),im,regularize_W4DOF, scaleOrig ));
@@ -1939,7 +1943,10 @@ int main( int argc, const char** argv )
                     	TIME(numSplits = cdwtClassifier->getNumCellDivisions());
                     	cout << "Corrected " << numCorrections << " out of " << numSplits << " initially proposed cell divisions in frame " << frameOffset << " because cell division classifier with temporal window with thr =" << cdwtClassifier->getThrCDWT() << endl;
 						
-						DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
+						/*DebugFindUnmatchedSupervoxelChildren( frameOffset, frameOffset+1, lht );
+						DebugFindUnmatchedSupervoxelChildren( frame - 1, frame, lht );*/
+						
+						//DebugFindZeroTreeNodePtrAddr( frameOffset, frame, lht );
 						//if (lengthTMthr > 0)
 						//{
 						//	//redo in case other fixes have incorporated
@@ -1953,8 +1960,9 @@ int main( int argc, const char** argv )
 						extendDeadNucleiAtTMwithHS(lht, hsVec[configOptions.temporalWindowRadiusForLogicalRules+1], frameOffset, numCorrections, numSplits,im);//strictly speaking this is not a temporal feature, since it does not require a window, but it is still better to do it here (we can extend later)
 						cout << "Extended " << numCorrections << " out of " << numSplits << " dead cells in frame " << frameOffset << " using a simple local Hungarian algorithm with supervoxels" << endl;
 						
-						DebugFindZeroTreeNodePtrAddr( frameOffset, frameOffset+1, lht );
-						DebugFindUnmatchedSupervoxelChildren( frameOffset, frameOffset+1, lht );
+						//DebugFindZeroTreeNodePtrAddr( frameOffset, frameOffset+1, lht );
+						/*DebugFindUnmatchedSupervoxelChildren( frameOffset, frameOffset+1, lht );
+						DebugFindUnmatchedSupervoxelChildren( frame - 1, frame, lht );*/
 						
 						if (lengthTMthr > 0)
 						{
@@ -2071,7 +2079,7 @@ int main( int argc, const char** argv )
 				if(time_series_map.is_cached(frameOffset))
 					time_series_map.flush(frameOffset);
             }
-            
+            //DebugFindUnmatchedSupervoxelChildren( frame - 1, frame, lht );
             //DebugFindZeroTreeNodePtrAddr( frame - 2 * configOptions.temporalWindowRadiusForLogicalRules, frame, lht );
 			cout<<">> ...end temporal logical rules."<<endl;
             //cout << "Applying all the temporal logical rules took " << toc(&ttTemporalLogicalRules) << " secs" << endl;
