@@ -114,7 +114,7 @@ int main( int argc, const char** argv )
 #ifndef DO_NOT_USE_CUDA
 	int devCUDA = 0;
 #endif
-	cout << "ProcessStack Version " << GIT_TAG << " " << GIT_HASH << endl;
+	cout << "ProcessStack " << GIT_TAG << " " << GIT_HASH << endl;
 	time_t start, end;
 	if( argc == 4)//we have a .bin file from hierarchical segmentation and we want to output a segmentation for a specific tau
 	{

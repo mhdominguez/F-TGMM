@@ -1321,7 +1321,7 @@ void saveSupervoxels(const string & debugPath, const lineageHyperTree & lht, int
 int main( int argc, const char** argv )
 {
     try {
-        cout << "FTGMM Version " << GIT_TAG << " " << GIT_HASH << endl;
+        cout << "FTGMM " << GIT_TAG << " " << GIT_HASH << endl;
 
         parse_options(&argc,argv); // (ngc) options have to be after all the other args.  This modifies argc so things work with the older code below.
 
