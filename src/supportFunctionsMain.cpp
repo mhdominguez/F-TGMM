@@ -69,7 +69,7 @@ int parseNucleiList2TGMM(std::vector<GaussianMixtureModel*> &vecGM,lineageHyperT
     float S_k[dimsImage * (1 + dimsImage) / 2] = { 0 };
     count = 0;
     int countW;
-    cout << "     P4." << endl;
+    //cout << "     P4." << endl;
     for (list<nucleus>::iterator iterN = listNucleiPtr->begin(); iterN != listNucleiPtr->end(); ++iterN, ++count)
     {
 
@@ -119,7 +119,7 @@ int parseNucleiList2TGMM(std::vector<GaussianMixtureModel*> &vecGM,lineageHyperT
         vecGM[count]->lineageId = count;//some pieces of the code need this info to be different than -1;in this case everything is from a different lineage
 	}
 	count = 0;
-	cout << "     P5." << endl;
+	//cout << "     P5." << endl;
     for (list<nucleus>::iterator iterN = listNucleiPtr->begin(); iterN != listNucleiPtr->end(); ++iterN, ++count)
     {
         //save supervoxel
@@ -701,21 +701,21 @@ int extendDeadNucleiWithHS(lineageHyperTree &lht, hierarchicalSegmentation* hsFo
 	//cout << "   S2." << endl;
 	for(list< supervoxel >::iterator iter = svListT0.begin(); iter != svListT0.end(); ++iter)
 	{
-		/*size_t sizeVec = iter->nearestNeighborsInTimeForward.size();
+		size_t sizeVec = iter->nearestNeighborsInTimeForward.size();
 		for( size_t cc = 0; cc < sizeVec; cc++ )//we need to access using indexes because we push_back into iter->nearestNeighborsInTimeForward if a split is done
 		{
-			SibilingTypeSupervoxel iterNeigh = iter->nearestNeighborsInTimeForward[cc];*/
+			SibilingTypeSupervoxel iterNeigh = iter->nearestNeighborsInTimeForward[cc];
 		
-		//reverse iterate because using push_back on this very vector
-		if ( iter->TM + 1 != TMforward )
-		{
-			cout << "extendDeadNucleiWithHS: supervoxels time frame not matched, " << TMforward << " != " << iter->TM + 1 << endl;
-			continue;
-		}
+			//reverse iterate because using push_back on this very vector
+			if ( iter->TM + 1 != TMforward )
+			{
+				cout << "extendDeadNucleiWithHS: supervoxels time frame not matched, " << TMforward << " != " << iter->TM + 1 << endl;
+				continue;
+			}/*
 		vector<SibilingTypeSupervoxel>::iterator iterNeighEnd = iter->nearestNeighborsInTimeForward.end(); //set this up before, so we don't re-run elements that have been push_back'd
 		for(vector<SibilingTypeSupervoxel>::iterator iterNeighThis = iter->nearestNeighborsInTimeForward.begin(); iterNeighThis != iterNeighEnd; ++iterNeighThis) 
 		{
-			SibilingTypeSupervoxel iterNeigh = (*iterNeighThis);
+			SibilingTypeSupervoxel iterNeigh = (*iterNeighThis);*/
 			if ( (*iterNeigh).TM != TMforward )
 			{
 				cout << "extendDeadNucleiWithHS: splitting supervoxels time frame not matched, " << (*iterNeigh).TM << " != " << iter->TM + 1 << endl;
