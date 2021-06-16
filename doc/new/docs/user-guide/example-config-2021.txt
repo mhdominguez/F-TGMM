@@ -1,0 +1,145 @@
+
+
+#Configuration file to set parameters for Tracking with Gaussian Mixture Models (TGMM) software.
+#This file is a template for use with the test data set provided with the software package.
+#Use the pound symbol (#) for comments.
+#Visit the manual or paper for more information on each parameter.
+
+
+
+#================== MAIN PARAMETERS ==================
+
+#Aspect ratio of X- and Y-coordinates versus Z-coordinate
+anisotropyZ=4
+
+#Image background level (set conservatively)
+backgroundThreshold=3
+
+#Tau level for generating an initial set of supervoxels from the hierarchical segmentation of watershed and persistence-based clustering
+persistanceSegmentationTau=3
+
+#Sigma of gassian filter used for background detection and subtraction (see below options); recommend values between 10 and 30, or 10x radiusMedianFilter
+sigmaGaussianBlurBackground=20
+
+#Floating point value 0 to 1 to use Gaussian-blurred image for background detection -- background will be called when pixel values in the blurred image are below (backgroundThreshold * this number) -- turning this on may have aggressive background removal effects, please audition results
+useBlurredImageForBackgroundDetection=0.7
+
+#Floating point value - weight of blurred image prior to regional background subtraction; the blurred image is multiplied by this number (suggest value between 0.5 and 1), then subtracted off prior to segmentation
+weightBlurredImageSubtract=0.6
+
+
+
+
+#================ ADVANCED PARAMETERS ================
+
+#NOTE: These parameters were not changed between the various runs presented in the associated paper.
+#Most of these parameters should not be altered. However, you can modify them if required by your data.
+
+#--- Variational inference for Bayesian GMM
+
+#Prior probability for centroid position of a nucleus based on its most recent position. If cells are moving fast this parameter should be set close to zero. If cells are moving very little, and the position at time t is a good prediction for the position at time t + 1, this parameter should be set to 1 or greater
+betaPercentageOfN_k=1.9
+
+#Prior probability for shape change. If objects change shape rapidly between two consecutive time points this parameter should be set close to zero. If object shapes change very little between time points this parameter should be set to 1 or greater.
+nuPercentageOfN_k=0.3
+
+#Prior probability of track death, with lower values accomodating of greater numbers of tracks that die off
+alphaPercentage=0.8
+
+#Stopping criteria
+maxIterEM=50
+tolLikelihood=1e-6
+
+#Boundaries for Gaussian shapes
+#aux=scaleSigma/(maxRadius*maxRadius) with scaleSigma=2.0 and maxRadius=10 (adjust with scale)
+#The larger the value of regularizePrecisionMatrixConstants_lambdaMin, the larger the ellipsoids fitting each nucleus can grow.
+regularizePrecisionMatrixConstants_lambdaMin=0.02
+
+#aux=scaleSigma/(minRadius*minRadius) with scaleSigma=2.0 and minRadius=3.0 (adjust with scale) (the shape of the fluorescently-labeled chromatin can become highly anisotropic when nuclei divide)
+#The lower the value of regularizePrecisionMatrixConstants_lambdaMax, the smaller the ellipsoids fitting each nucleus can shrink
+regularizePrecisionMatrixConstants_lambdaMax=0.8
+
+#Maximum excentricity allowed: sigma[i]=1/sqrt(d[i]). maxExcentricity needs to be squared to relate to the radius.
+regularizePrecisionMatrixConstants_maxExcentricity=16.0
+
+#--- Removal of tracks belonging to background objects instead of cell nuclei
+
+#Radius of temporal window use to apply combinatorial rules
+temporalWindowForLogicalRules=5
+
+#Hysteresis values to apply the background classifier
+#If thrBackgroundDetectorHigh >= 1.0, then the background classifier is not used
+thrBackgroundDetectorHigh=1.1
+thrBackgroundDetectorLow=0.2
+
+#Short-lived daughter parameters
+SLD_lengthTMthr=5
+
+#--- Hierarchical segmentation with watershed and persistence-based clustering
+radiusMedianFilter=2
+minTau=0
+
+#Connectivity for three-dimensional elements. Allowed values are 6, 26, 74.
+conn3D=74
+
+#--- Optical flow options
+
+#Decide whether we need to use optical flow to compensate for largemovements. 0 -> no optical flow; 1 -> load precalculated optical flow; 2 -> calculate optical flow on the fly 
+estimateOpticalFlow=0
+
+#Distance (in pixels) to consider nearest neighbor cells for coherent optical flow
+maxDistPartitionNeigh=80.0
+
+#If positive, optical flow module will be activated automatically if the number of deaths exceeds this value. Usually, when large movements occur, many Gaussians dissapear, i.e. this circumstance can be used to activate optical flow.
+deathThrOpticalFlow=-1
+
+#--- Trimming supervoxels using Otsu's threshold to distinguish background from foreground
+
+#Minimum size (in voxels) of a super-voxel (smaller super-voxels will be deleted)
+minNucleiSize=1200
+
+#Maximum size (in voxels) of a super-voxel (considered when we apply Otsu's threshold)
+maxNucleiSize=10000
+
+#Maximum percentage of voxels in a super-voxel belonging to foreground(considered when we apply Otsu's threshold)
+maxPercentileTrimSV=0.8
+
+#Connectivity considered when trimming super-voxels using Otsu's threshold.
+conn3DsvTrim=6
+
+#--- Other parameters
+
+#Maximum number of nearest neighbors to consider when building the spatio-temporal graph for tracking
+maxNumKNNsupervoxel=10
+
+#Maximum distance (in pixels) of nearest neighbors to consider when building the spatio-temporal graph for tracking
+maxDistKNNsupervoxel=40.0
+
+#If using 3D Haar-like features for cell division classification, this is the threshold for the machine learning classifier. You need to recompile the code in order to activate 3D Haar-like features.
+thrSplitScore=-1.0
+
+#threshold used to remove false positive cell divisions based on the distance of the mother cell to the midplane (cell division plane) between the two daughters
+#set to some arbitrary high number (i.e. 1000) during early division classifier training
+thrCellDivisionPlaneDistance=14 
+
+#0 or 1 value, CDTW features are used to train classifier
+writeCDWTfeaturesToTrainClassifier=0 
+
+#--- Division classifier parameters
+
+#Supported method: None, AmatF2013, LUT2018, DominguezM2021
+cellDivisionClassifierMethod=DominguezM2021
+
+#threshold used to remove false positive cell divisions based on a classifier with temporal 3D Haar ellliptical features
+thrCellDivisionWithTemporalWindow=0.45 #used to train division classifier when set at or below 0.1
+
+#LUT parameters only for using this division classifier method (McDole et al., Cell 2018)
+cellDivisionLUT_filename=/home/martin/Downloads/8bit_lut.csv
+cellDivisionLUT_spatial_threshold_px=30
+cellDivisionLUT_temporal_threshold_frames=2 
+
+
+#================== PATH PARAMETERS ==================
+
+imgFilePattern=/data/2020-03-26 E7.25 F6nGFP+LmChMesp1 Dataset/Fused Front/t00???_s01
+debugPathPrefix=/data/TGMM_output
