@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# TGMM2SVF_XMLfinalResult_folder_fix_cell_NaNs.pl 
+# XMLfinalResult_folder_fix_cell_NaNs.pl
 # 2019-2021 Martin H. Dominguez
 # Gladstone Institutes
 
@@ -24,6 +24,7 @@ my $path = Cwd::cwd(); #. "/interestpoints";
 sub main {
 	#my $z_column = 3;#default
 	#my $id_column = 0; #default
+	my @files_to_fix = ();
 	
 	if ( opendir( my $dh, $path ) ) {
 		my @files_ = readdir( $dh );
@@ -32,7 +33,7 @@ sub main {
 		#my @z_values = ();
 		#my @z_values_transformed = ();
 		my @timepoints_;
-		my @files_to_fix;
+
 		my @timepoints_to_fix;
 		my $html, $html1;
 		my $cell_text, $blank_text;#, $new_cell_text;
@@ -249,6 +250,8 @@ sub main {
 	} else {
 		print "Can't perform opendir $path: $!\n";
 	}	
+
+	return scalar(@files_to_fix);
 }
 
 #==================
@@ -259,61 +262,15 @@ sub uniq {
     grep !$seen{$_}++, @_;
 }
 
-sub set_stats {
 
-	my $avg = 0;
-	my $std = 0;
-	my $med = 0;
-	#my $mdn;
-	#use Data::Dumper;	print Dumper( \@_ );
-	for ( my $i = 0; $i < scalar(@_); $i++ ) {
-		#find the outliers of theta, and the average theta -> the average/outlier differential will determine how excessively to adjust the exponent
-		$avg += @_[$i];#abs(@_[$i]);
-	}
-	$avg /= scalar(@_);
-	for ( my $i = 0; $i < scalar(@_); $i++ ) {
-		#find the outliers of theta, and the average theta -> the average/outlier differential will determine how excessively to adjust the exponent
-		$std += (@_[$i] - $avg) ** 2;
-	}
-	$std = sqrt( $std / (scalar(@_)-1) );
-	
-	#TODO: fix this median-determining function!
-	@_ = sort { $a <=> $b } @_;#{ $a cmp $b };
-	#@_ = sort(@_);#{ $a cmp $b };
-	if ( scalar(@_) & 1 ) { #odd number of numbers
-		$med = int( scalar(@_)/2);
-		$med = @_[$med];
-		#$med = "me!";
-	} else {
-		$med = scalar(@_) / 2;
-		$med = ( @_[$med] + @_[$med -1] ) / 2;
-	}
-	
-	return ( $avg, $med, $std );
+
+
+#==================
+#Main
+#==================
+my $fixed = main();
+while ( $fixed > 0 ) {
+	$fixed = main();
 }
-
-sub return_counts_statistics {
-
-	#this sub does the main heavy lifting of this script: it finds the counts for every item in an array, then returns the avg,std,med,mode,count_of_mode of those counts
-	my @unique = uniq(@_);
-	my @unique_counts = ( 0 ) x scalar(@unique);
-
-	my $max_index = 0;
-	
-	for ( my $i=0; $i<scalar(@unique); $i++ ) {
-		#$unique_counts[$i] = 0;
-		map { $unique_counts[$i]++ if ( $unique[$i] eq $_ ); } @_;
-			$max_index = $i if ( $unique_counts[$i] > $unique_counts[$max_index] );
-		}
-			
-	my ( $avg, $med, $std ) = set_stats(@unique_counts); #find the average number of counts and the standard deviation
-	
-	return ($avg,$std,$med,$unique[$max_index],$unique_counts[$max_index]);
-}
-
-
-
-
-main();
 
 
