@@ -167,6 +167,7 @@ sub main {
 				#print "NaN encountered in $files_to_fix[$i]: " . scalar(@parent_cell_data) . "," . scalar(@child_cell_data) . " $parent_cell_data[0],$child_cell_data[0]\n";
 				#now, iterate over each field needing to be altered
 				#print "NaN encountered in $files_to_fix[$i]: " . scalar(@altered_index) . "\n";
+				my $isdead = 0;
 				for ( my $k=0; $k<scalar(@altered_index); $k++ ) {
 					#print "here";
 					if ( $this_cell_data[$altered_index[$k]] =~ /(\w+)=\"(.*)\"/i ) { #print "here";
@@ -196,7 +197,32 @@ sub main {
 							$this_cell_data[$altered_index[$k]] = $find_field . "=\"" . $child_data . "\"";
 						} elsif ( $child_data eq "" ) {
 							#no child data, just copy parent's
+
+							#check for cell death, no child and nu=0
+							for ( my $q=0; $q<scalar(@this_cell_data); $q++ ) {
+								next if ( $q == $altered_index[$k] );
+								if ( $this_cell_data[$q] =~ /(\w+)=\"(.*)\"/i ) { #print "here";
+									my $this_find_field = $1;
+									my $this_find_values = $2;
+									if ( ( $this_find_field =~ /^nu/ || $this_find_field =~ /^beta/ || $this_find_field =~ /^alpha/ )  && $this_find_values == 0 ) {
+										$isdead++;
+										#for ( my $l=0; $l<scalar(@parent_cell_data); $l++ ) {
+										#	if ( $parent_cell_data[$l] =~ /$this_find_field=\"(.*)\"/i ) {
+										#		$this_cell_data[$q] = $this_find_field . "=\"" . ( $1 / 2 ) . "\""; #average between 0 and the real value
+										#		$isdead--;
+										#		last;
+										#	}
+										#}
+										last;
+									}
+								}
+							}
+
+							last if ( $isdead > 0 );
 							$this_cell_data[$altered_index[$k]] = $find_field . "=\"" . $parent_data . "\"";
+						} elsif ($find_field =~ /^W/) { #precision matrix, or inverse of covariance matrix (i.e. cell shape), should not average these
+							#just inherit parent's W
+							$this_cell_data[$altered_index[$k]] = $find_field . "=\"" . $child_data . "\"";
 						} elsif ( $parent_data =~ /\s/ || $child_data =~ /\s/ ) { #compound field
 							my @parent_data_values = split( /\s/, $parent_data );
 							my @child_data_values = split( /\s/, $child_data );
@@ -221,9 +247,13 @@ sub main {
 						}
 					}
 				}
-				
 				push( @orig_cells, "<GaussianMixtureModel $cell_text>$blank_text<\/GaussianMixtureModel>" );
-				push( @replace_cells, "<GaussianMixtureModel " . join(' ', @this_cell_data) . ">$blank_text<\/GaussianMixtureModel>" );
+
+				if ( $isdead > 0 ) {
+					push( @replace_cells, "" );
+				} else {
+					push( @replace_cells, "<GaussianMixtureModel " . join(' ', @this_cell_data) . ">$blank_text<\/GaussianMixtureModel>" );
+				}
 			}
 			
 			
