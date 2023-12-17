@@ -192,6 +192,7 @@ sub main {
 						if ($parent_data eq "" && $child_data eq "") {
 							#no data at all!
 							print "Problem collecting parent and/or child data for cell id $this_id in file $files_to_fix[$i]!\n";
+							$isdead++;
 						} elsif ( $parent_data eq "" ) {
 							#no parent data, just copy child's
 							$this_cell_data[$altered_index[$k]] = $find_field . "=\"" . $child_data . "\"";
@@ -226,16 +227,18 @@ sub main {
 						} elsif ( $parent_data =~ /\s/ || $child_data =~ /\s/ ) { #compound field
 							my @parent_data_values = split( /\s/, $parent_data );
 							my @child_data_values = split( /\s/, $child_data );
-						
+
 							if ( scalar(@parent_data_values) != scalar(@child_data_values)  ) {
 								print "Problem with mismatched parent and child data for cell id $this_id in file $files_to_fix[$i]!\n";
+								$this_cell_data[$altered_index[$k]] = $find_field . "=\"" . $parent_data . "\"";
+							} else {
+								my $final_data_field = "";
+								for ( my $m=0; $m<scalar(@parent_data_values); $m++ ) {
+									$final_data_field .= (($parent_data_values[$m]+$child_data_values[$m])/2) . " ";
+								}
+								$this_cell_data[$altered_index[$k]] = $find_field . "=\"" . $final_data_field . "\"";
 							}
-							my $final_data_field = "";
-							for ( my $m=0; $m<scalar(@parent_data_values); $m++ ) {
-								$final_data_field .= (($parent_data_values[$m]+$child_data_values[$m])/2) . " ";
-							}
-							
-							$this_cell_data[$altered_index[$k]] = $find_field . "=\"" . $final_data_field . "\"";
+
 						} else {
 							if ( $child_data =~ /\d/ && $parent_data =~ /\d/ ) {
 								#numerical value, so average
