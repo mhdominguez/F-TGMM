@@ -6,15 +6,43 @@ segmentation routines, enhancements to both primary division detection code
 and to the secondary 3D Haar GPU division classifier, as well as numerous 
 bug fixes in division detection and temporal logical rules.
 
+## Quick Start (using pre-built binaries)
 
-## Build Requirements
+### System Requirements
+
+- **Minimum CPU:** 8-core processor (Intel or AMD), 16-core+ recommended
+- **Minimum RAM:** 64 GB, 128 GB+ recommended
+- **OS:** Linux with GUI (has been testing on Ubuntu and Kubuntu from 18.04 to 24.04 LTS)
+- **Storage:** 8 TB+ free space depending on datasets
+- **GPU:** NVIDIA GPU with proprietary driver support, version 470+ (Kepler architecture or newer)
+- **Minimum CPU:** 8-core processor (Intel or AMD), 16-core+ recommended
+
+### Instructions
+
+Save the most recent Linux `...build-with-libraries' archive in Releases on right, to `~/Downloads/F-TGMM.tar.gz`. Note: in Linux, tilde `~` is an alias pointing to the user’s home directory (i.e., `/home/fred`, if username is ‘fred’).
+
+Install to /opt/tgmm using console Konsole/xtern/GNOME Terminal (i.e.Terminal):
+```sh
+sudo mkdir /opt/tgmm
+cd ~/Downloads
+sudo tar -xvzf F-TGMM.tar.gz -C /opt/tgmm
+```
+Install GNU parallel, for running watershed segmentation:
+```sh
+sudo apt install parallel
+```
+
+
+## Building F-TGMM
+
+### Requirements
 
 * [CMake](https://cmake.org/) builds with v3.15.3
 * [CUDA](https://developer.nvidia.com/cuda-downloads) install CUDA toolkit 11.1
 * [Git](https://git-scm.com/) to download the software
 
 
-## Quick Start
+### Instructions
 
 Download the source code:
 
