@@ -6,6 +6,8 @@ segmentation routines, enhancements to both primary division detection code
 and to the secondary 3D Haar GPU division classifier, as well as numerous 
 bug fixes in division detection and temporal logical rules.
 
+<br>
+
 ## Quick Start (using pre-built binaries)
 
 ### System Requirements
@@ -19,7 +21,7 @@ bug fixes in division detection and temporal logical rules.
 
 ### Instructions
 
-Save the most recent Linux `...build-with-libraries' archive in Releases on right, to `~/Downloads/F-TGMM.tar.gz`. Note: in Linux, tilde `~` is an alias pointing to the user’s home directory (i.e., `/home/fred`, if username is ‘fred’).
+Save the most recent Linux `...build-with-libraries` archive in Releases on right, to `~/Downloads/F-TGMM.tar.gz`. Note: in Linux, tilde `~` is an alias pointing to the user’s home directory (i.e., `/home/fred`, if username is ‘fred’).
 
 Install to /opt/tgmm using console Konsole/xtern/GNOME Terminal (i.e.Terminal):
 ```sh
@@ -32,6 +34,8 @@ Install GNU parallel, for running watershed segmentation:
 sudo apt install parallel
 ```
 
+
+<br>
 
 ## Building F-TGMM
 
@@ -77,11 +81,13 @@ sudo cp -rf ../install/* /opt/tgmm
 
 ```
 
-
+<br>
 
 ## Resources
 
 [Original TGMM Repository](https://bitbucket.org/fernandoamat/tgmm-paper)
+
+<br>
 
 ## References 
 
