@@ -21,7 +21,7 @@ bug fixes in division detection and temporal logical rules.
 
 ### Instructions
 
-Save the most recent Linux `...build-with-libraries` archive in Releases on right, to `~/Downloads/F-TGMM.tar.gz`. Note: in Linux, tilde `~` is an alias pointing to the user’s home directory (i.e., `/home/fred`, if username is ‘fred’).
+Find the most recent Linux `...build-with-libraries-x86-64.tar.gz` archive in Releases on the right column of this page, and save the file to `~/Downloads/F-TGMM.tar.gz`. Note: in Linux, tilde `~` is an alias pointing to the user’s home directory (i.e., `/home/fred`, if username is ‘fred’).
 
 Install to /opt/tgmm using console Konsole/xtern/GNOME Terminal (i.e.Terminal):
 ```sh
@@ -29,7 +29,7 @@ sudo mkdir /opt/tgmm
 cd ~/Downloads
 sudo tar -xvzf F-TGMM.tar.gz -C /opt/tgmm
 ```
-Install GNU parallel, for running watershed segmentation:
+Install GNU parallel, for running watershed segmentation (ProcessStack) in parallel threads:
 ```sh
 sudo apt install parallel
 ```
